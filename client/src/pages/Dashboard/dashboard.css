@@ -1,0 +1,60 @@
+.dashboard-container-wrapper, .dashboard-container{
+  width: 100%;
+  height: 100vh;
+}
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.hero-wrapper {
+  display: flex;
+  position: relative;
+  height: 100vh;
+  width: 100%;
+}
+
+.nav-wrapper,
+.nav {
+  width: 100%;
+  background-color: red;
+  padding: 1rem;
+}
+
+.column {
+  padding: 20px;
+  background-color: #f0f0f0;
+  box-sizing: border-box;
+}
+
+.resizer {
+  width: 5px;
+  background-color: #000;
+  cursor: ew-resize;
+  position: relative;
+}
+
+.terminal {
+  position: absolute;
+  bottom: 0;
+  z-index: 10;
+  /* width: calc(100% - 16%); Adjust width based on column 1's width */
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.horizontal-resizer {
+  position: absolute;
+  /* top: 0; Adjust the position based on terminal height */
+  left: 16%;
+  width: calc(100% - 16%);
+  height: 5px;
+  background-color: #000;
+  cursor: ns-resize;
+  z-index: 10;
+}
+
