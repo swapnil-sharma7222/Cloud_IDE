@@ -1,5 +1,7 @@
 import React, { useState, MouseEvent } from "react";
 import "./dashboard.css";
+import { CodeEditor } from "../../components/code-editor";
+import TerminalComponent from "../../components/terminal";
 
 interface ColumnWidths {
   column1: number;
@@ -122,7 +124,7 @@ const Dashboard: React.FC = () => {
             className="column"
             style={{ width: `${columnWidths.column2}%` }}
           >
-            Column 2
+            <CodeEditor/>
           </div>
 
           {/* Resizer between Column 2 and Column 3 */}
@@ -157,7 +159,7 @@ const Dashboard: React.FC = () => {
                 width: `${terminalWidth}%`,
               }}
             >
-              Terminal (on top of Column 2 and Column 3)
+              <TerminalComponent/>
             </div>
           </div>
         </div>
