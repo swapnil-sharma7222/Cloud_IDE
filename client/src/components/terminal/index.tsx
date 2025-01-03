@@ -2,12 +2,14 @@ import React, { useEffect, useRef } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { FitAddon } from '@xterm/addon-fit';
+import { io, Socket } from 'socket.io-client';
 import '@xterm/xterm/css/xterm.css';
 
 const TerminalFrontend: React.FC = () => {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const term = useRef<Terminal | null>(null);
   const fitAddon = useRef<FitAddon | null>(null);
+  const socket = useRef<Socket | null>(null);
 
   useEffect(() => {
     if (terminalRef.current) {
@@ -35,21 +37,32 @@ const TerminalFrontend: React.FC = () => {
       // Fit the terminal to its container
       fitAddon.current.fit();
 
-      // Example of writing output to the terminal
-      term.current.writeln('Welcome to the Terminal!');
-      term.current.writeln('Type something and press Enter...');
-      term.current.writeln('Clickable link: https://github.com');
+      // Initialize Socket.IO connection
+      socket.current = io('ws://localhost:8081/');
+
+      socket.current.on('connect', () => {
+        console.log('Connected to Socket.IO server');
+      });
+
+      socket.current.on('disconnect', () => {
+        console.log('Disconnected from Socket.IO server');
+      });
 
       // Handle user input
       term.current.onData((data) => {
-        // Simulate echo
-        term.current?.writeln(`You typed: ${data}`);
+        socket.current?.emit('terminal:write', data);
+      });
+
+      // Handle data from backend
+      socket.current.on('terminal:data', (data: string) => {
+        term.current?.write(data);
       });
 
       // Clean up on component unmount
       return () => {
         term.current?.dispose();
         fitAddon.current?.dispose();
+        socket.current?.disconnect();
       };
     }
   }, []);
@@ -69,7 +82,11 @@ const TerminalFrontend: React.FC = () => {
   return (
     <div
       ref={terminalRef}
-      style={{ width: '100%', height: 'inherit', backgroundColor: '#ffffff', overflowX: 'clip', 
+      style={{
+        width: '100%',
+        height: 'inherit',
+        backgroundColor: '#1e1e1e',
+        overflowX: 'clip',
       }}
     ></div>
   );
