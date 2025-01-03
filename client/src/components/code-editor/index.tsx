@@ -77,6 +77,8 @@
 import { useMonaco } from "@monaco-editor/react";
 import { Editor } from "@monaco-editor/react";
 import { useEffect, useState } from "react";
+import { Box } from "@mui/material";
+import FileTabs from "./FileTabs";
 
 type Props = {
   theme?: string
@@ -97,16 +99,39 @@ export function CodeEditor ({theme, language, value}: Props) {
     console.log('here is the current model value:');
   }
   return (
-    <Editor
-      theme={ theme|| "vs-dark" }
-      height="100vh"
-      defaultLanguage="javascript"
-      defaultValue=""
-      language={language}
-      value={value}
-      onChange={handleEditorChange}
-      className="editor"
-    />
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "#1e1e1e",
+        width: "100%",
+        height: "calc(100vh - 200px)", // Deducting the terminal height
+        color: "#fff",
+        transition: "height 0.1s ease",
+      }}
+    >
+      <FileTabs />
+      <Box
+        sx={{
+          flexGrow: 1,
+          padding: 2,
+          backgroundColor: "#1e1e1e",
+          color: "#fff",
+        }}
+      >
+        {/* Placeholder for Monaco Editor content */}
+        <Editor
+          theme={ theme|| "vs-dark" }
+          height="100vh"
+          defaultLanguage="typescript"
+          defaultValue=""
+          language={language}
+          value={value}
+          onChange={handleEditorChange}
+          className="editor"
+        />
+      </Box>
+    </Box>
   );
 }
 
