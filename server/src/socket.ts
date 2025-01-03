@@ -1,31 +1,13 @@
-
-import cors from "cors"
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer} from 'http'
 
-// const io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>= new Server(server, {
-//   cors: {
-//     origin: '*',
-//   }
-// });
+import { ptyProcess } from "./services/pseudoTerminal.ts";
 
-// io.on('connection', (socket)=>{
-//   console.log('User has joined: ', socket.id);
+import cors from "cors";
+// import { log } from "console";
 
-//   socket.on('join-playground', (playgroundId): void => {
-//     console.log(`User ${socket.id} joined ${playgroundId}`);
-//     socket.join(playgroundId);
-//   })
-
-//   socket.on('code-change', (playgroundId: string, content)=> {
-//     console.log("this is the code change", content);
-//   })
-
-//   socket.on('disconnection', ()=> {
-//     console.log(`User ${socket.id} disconnected`);
-
-//   })
-// })
+// Disable input echoing
+ptyProcess.write('stty -echo\n');
 
 export function initSocket(server :HttpServer): void {
   const io = new Server(server, {
@@ -35,8 +17,14 @@ export function initSocket(server :HttpServer): void {
   });
 
   io.on("connection", (socket: Socket) => {
-    console.log(`User connected: ${socket.id}`);
+    console.log("WebSocket server is ready.");
 
+    socket.on('terminal:write', (data: string): void => {
+      // console.log(data + " Hi");
+      
+      ptyProcess.write(`${data}\n`);
+    })
+    
     socket.on("join-playground", (playgroundId: string) => {
       console.log(`User ${socket.id} joined ${playgroundId}`);
       socket.join(playgroundId);
@@ -50,6 +38,14 @@ export function initSocket(server :HttpServer): void {
       console.log(`User ${socket.id} disconnected`);
     });
     // Log server ready
-    console.log("WebSocket server is ready.");
   });
+
+  ptyProcess.onData((data: string):void =>{
+    console.log(`Io Edit started ${data}`);
+    
+    io.emit('terminal:data', data);
+
+    // console.log(data);
+    
+  })
 }

@@ -2,6 +2,7 @@ import React, { useState, MouseEvent } from "react";
 import "./dashboard.css";
 import { CodeEditor } from "../../components/code-editor";
 import TerminalComponent from "../../components/terminal";
+import FolderStructure from "../../components/side-bar/FolderStructure";
 
 interface ColumnWidths {
   column1: number;
@@ -113,7 +114,7 @@ const Dashboard: React.FC = () => {
             className="column"
             style={{ width: `${columnWidths.column1}%` }}
           >
-            Column 1
+            <FolderStructure />
           </div>
 
           {/* Resizer between Column 1 and Column 2 */}
