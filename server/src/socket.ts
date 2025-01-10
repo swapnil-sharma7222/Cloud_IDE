@@ -1,13 +1,8 @@
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer} from 'http'
-
 import { ptyProcess } from "./services/pseudoTerminal.ts";
-
 import cors from "cors";
-// import { log } from "console";
 
-// Disable input echoing
-ptyProcess.write('stty -echo\n');
 
 export function initSocket(server :HttpServer): void {
   const io = new Server(server, {
@@ -18,11 +13,11 @@ export function initSocket(server :HttpServer): void {
 
   io.on("connection", (socket: Socket) => {
     console.log("WebSocket server is ready.");
+    console.log(`User connected: ${socket.id}`);
 
     socket.on('terminal:write', (data: string): void => {
-      // console.log(data + " Hi");
-      
-      ptyProcess.write(`${data}\n`);
+      console.log("data from client", data);
+      ptyProcess.write(`${data}`);
     })
     
     socket.on("join-playground", (playgroundId: string) => {
@@ -41,11 +36,7 @@ export function initSocket(server :HttpServer): void {
   });
 
   ptyProcess.onData((data: string):void =>{
-    console.log(`Io Edit started ${data}`);
-    
+    console.log("data from server:", data);
     io.emit('terminal:data', data);
-
-    // console.log(data);
-    
   })
 }

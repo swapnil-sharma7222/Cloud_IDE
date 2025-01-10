@@ -1,12 +1,17 @@
 import pty from "node-pty"
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const ptyProcess = pty.spawn('bash', [], {
   name: 'xterm-color',
   cols: 80,
   rows: 30,
-  cwd: process.env.INIT_CWD,
-  env: process.env
+  cwd: path.join(__dirname, '../..'), // Navigate two levels up
+  env: process.env,
 });
+
 
 // ptyProcess.onData((data: string) => {
 //   process.stdout.write(data);
