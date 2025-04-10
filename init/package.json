@@ -13,12 +13,14 @@
   "type": "commonjs",
   "dependencies": {
     "dockerode": "^4.0.5",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/dockerode": "^3.3.37",
     "@types/express": "^5.0.1",
     "@types/node": "^22.14.0",
+    "@types/uuid": "^10.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
