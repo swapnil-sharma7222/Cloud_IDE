@@ -1,69 +1,85 @@
-// server.ts
-import express from 'express';
+import express, { Request, Response } from 'express';
 import Docker from 'dockerode';
-import { PassThrough } from 'stream';
+import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
-const port = 3000;
 const docker = new Docker();
+const PORT = 3000;
 
-const imageName = 'pushpak01/cloud_ide-node-alpine';
+interface RoomInfo {
+  containerName: string;
+  containerId: string;
+}
 
-app.get('/run-container', async (_req, res) => {
-    try {
-      console.log(`Pulling image ${imageName}...`);
-      await new Promise((resolve, reject) => {
-        docker.pull(imageName, (err: Error | null, stream: PassThrough) => {
-          if (err) return reject(err);
-          docker.modem.followProgress(stream, onFinished, onProgress);
-  
-          function onFinished(err: Error | null) {
-            if (err) return reject(err);
-            resolve(true);
-          }
-  
-          function onProgress(event: any) {
-            process.stdout.write('.');
-          }
-        });
-      });
-  
-      console.log('\nImage pulled.');
-  
-      const containerName = 'cloud_ide_container';
-  
-      // Check if container exists
-      const containers = await docker.listContainers({ all: true });
-      const existingContainerInfo = containers.find(c => c.Names.includes(`/${containerName}`));
-  
-      if (existingContainerInfo) {
-        const existingContainer = docker.getContainer(existingContainerInfo.Id);
-        if (existingContainerInfo.State === 'running') {
-          console.log('Stopping existing container...');
-          await existingContainer.stop();
-        }
-        console.log('Removing existing container...');
-        await existingContainer.remove();
-      }
-  
-      // Create and start new container
-      console.log('Creating and starting container...');
-      const container = await docker.createContainer({
-        Image: imageName,
-        name: containerName,
-        Tty: true,
-      });
-  
-      await container.start();
-      console.log(`Container started with ID: ${container.id}`);
-      res.send(`Container started with ID: ${container.id}`);
-    } catch (err) {
-      console.error('Error:', err);
-      res.status(500).send('Failed to pull and run the container.');
+const roomContainerMap: Record<string, RoomInfo> = {};
+
+app.get('/start', (req: Request, res: Response) => {
+  const roomId = uuidv4();
+  const containerName = `cloud_ide_container_${roomId}`;
+  const imageName = 'pushpak01/cloud_ide-node-alpine';
+
+  docker.pull(imageName, (err: Error | null, stream: NodeJS.ReadableStream) => {
+    if (err) {
+      console.error('Pull error:', err);
+      return res.status(500).send('Failed to pull image');
     }
+
+    docker.modem.followProgress(stream, async () => {
+      try {
+        const container = await docker.createContainer({
+          Image: imageName,
+          name: containerName,
+          Tty: true,
+          Cmd: ['/bin/sh'],
+          HostConfig: {
+            AutoRemove: true,
+          },
+        });
+
+        await container.start();
+
+        roomContainerMap[roomId] = {
+          containerName,
+          containerId: container.id,
+        };
+
+        console.log(`✅ Container started for room ${roomId}: ${containerName}`);
+        res.send({ roomId, containerName });
+      } catch (createErr) {
+        console.error('Container creation error:', createErr);
+        res.status(500).send('Failed to create/start container');
+      }
+    });
+  });
+});
+
+app.get('/rooms', (req: Request, res: Response) => {
+  res.send(roomContainerMap);
+});
+
+app.get('/stop/:roomId', (req: Request, res: Response) => {
+    const { roomId } = req.params;
+    const roomInfo = roomContainerMap[roomId];
+  
+    if (!roomInfo) {
+      res.status(404).send('Room not found');
+      return;
+    }
+  
+    const container = docker.getContainer(roomInfo.containerId);
+    container.stop()
+      .then(() => {
+        delete roomContainerMap[roomId];
+        console.log(`🛑 Stopped and removed container for room ${roomId}`);
+        res.send(`Container for room ${roomId} stopped and removed.`);
+      })
+      .catch((err: any) => {
+        console.error('Error stopping container:', err);
+        res.status(500).send('Failed to stop container');
+      });
   });
   
 
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
