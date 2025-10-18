@@ -8,7 +8,9 @@
     "esModuleInterop": true,            // Interop with CommonJS modules
     "moduleResolution": "node",         // Resolve modules using Node.js conventions
     "resolveJsonModule": true,          // Allow importing JSON files
-    "skipLibCheck": true                // Skip checking declaration files
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true             // Skip checking declaration files
   },
   "include": ["src/**/*.ts"],           // Include the source directory
   "exclude": ["node_modules"]           // Exclude node_modules
