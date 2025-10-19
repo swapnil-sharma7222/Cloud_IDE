@@ -1,14 +1,21 @@
-import express from "express";
+import express from 'express'
 import bodyParser from "body-parser";
 import cors from "cors";
 // import { Server, Socket } from "socket.io";
 import { createServer } from "http";
 import dotenv from "dotenv"
-import { connectdb } from './db.js'
-import { initSocket } from "./socket.js";
+import { connectdb } from './db.ts'
+import { initSocket } from "./socket.ts";
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from "url";
+
+
 // import io from './socket'
 
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express();
 const server= createServer(app);
 app.use(express.json());
@@ -18,6 +25,45 @@ dotenv.config({ path: './.env' });
 // connectdb();
 initSocket(server)
 
+const ROOT_DIR = "C:/Users/E174087/Desktop/newFolder/folder";
+
+export interface FileNode {
+  name: string;
+  type: "file" | "folder";
+  children?: FileNode[];
+}
+
+export function getFolderStructure(dir: string): FileNode[] {
+  const items = fs.readdirSync(dir);
+
+  return items.map((item) => {
+    const fullPath = path.join(dir, item);
+    const stats = fs.statSync(fullPath);
+
+    if (stats.isDirectory()) {
+      return {
+        name: item,
+        type: "folder",
+        children: getFolderStructure(fullPath),
+      };
+    } else {
+      return {
+        name: item,
+        type: "file",
+      };
+    }
+  });
+}
+
+app.get("/v1/api/folder-structure", (req, res) => {
+  try {
+    const structure = getFolderStructure(ROOT_DIR);
+    res.json(structure);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to read folder structure" });
+  }
+});
 
 const PORT: string|number  = process.env.PORT || 4200;
 app.get("/", (req, res):void => {

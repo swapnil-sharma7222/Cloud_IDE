@@ -40,21 +40,25 @@
   position: absolute;
   bottom: 0;
   z-index: 10;
-  /* width: calc(100% - 16%); Adjust width based on column 1's width */
-  background-color: rgba(0, 0, 0, 0.8);
+  /* width: calc(100% - 16%);  */
+  height: 100%; /* Set an appropriate height */
+  background-color: rgba(20, 214, 168, 0.8);
   color: #fff;
-  /* padding: 10px; */
   box-sizing: border-box;
 }
+
 
 .horizontal-resizer {
   position: absolute;
   /* top: 0; Adjust the position based on terminal height */
   left: 16%;
-  width: calc(100% - 16%);
+  /* width: calc(100% - 16%); */
   height: 5px;
   background-color: #000;
   cursor: ns-resize;
   z-index: 10;
 }
 
+.xterm-screen, .xterm-rows, .xterm-focus {
+  height: 100%; !important
+}

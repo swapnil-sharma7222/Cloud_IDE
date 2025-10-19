@@ -4,6 +4,7 @@ import { CodeEditor } from '../../components/code-editor'
 import TerminalComponent from '../../components/terminal'
 import FolderStructure from '../../components/side-bar/FolderStructure'
 import axios from 'axios'
+import WebView from "../../components/web-view";
 
 interface ColumnWidths {
   column1: number
@@ -127,16 +128,22 @@ const Dashboard: React.FC = () => {
           <div className="resizer" onMouseDown={handleDragFirstResizer}></div>
 
           {/* Column 2 */}
-          <div className="column" style={{ width: `${columnWidths.column2}%` }}>
-            <CodeEditor />
+          <div
+            className="column"
+            style={{ width: `${columnWidths.column2}%`, overflow: 'hidden' }}
+          >
+            <CodeEditor/>
           </div>
 
           {/* Resizer between Column 2 and Column 3 */}
           <div className="resizer" onMouseDown={handleDragSecondResizer}></div>
 
           {/* Column 3 */}
-          <div className="column" style={{ width: `${columnWidths.column3}%` }}>
-            Column 3
+          <div
+            className="column"
+            style={{ width: `${columnWidths.column3}%` }}
+          >
+            {/* <WebView/> */}
           </div>
 
           <div className="terminal-wrapper">
@@ -160,7 +167,13 @@ const Dashboard: React.FC = () => {
                 width: `${terminalWidth}%`,
               }}
             >
-              <TerminalComponent />
+              <div
+                style={{
+                  height: "100%",
+                }}
+              >
+                <TerminalComponent/>
+              </div>
             </div>
           </div>
         </div>
