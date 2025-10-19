@@ -1,6 +1,25 @@
-import React, { FC } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import { Box } from '@mui/material';
 import SidebarItem from './SidebarItem.tsx';
+
+interface FileNode {
+  name: string;
+  type: "file" | "folder";
+  children?: FileNode[];
+}
+
+function FileTree({ nodes }: { nodes: FileNode[] }) {
+  return (
+    <ul>
+      {nodes.map((node, idx) => (
+        <li key={idx}>
+          {node.type === "folder" ? "📁" : "📄"} {node.name}
+          {node.children && <FileTree nodes={node.children} />}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 const FolderStructure: FC = () => {
   const folderStructure = {
@@ -75,6 +94,14 @@ const FolderStructure: FC = () => {
       { name: 'tsconfig.json', type: 'file' },
     ],
   };
+  const [structure, setStructure] = useState<FileNode[]>([]);
+
+  useEffect(() => {
+    fetch("http://localhost:4200/v1/api/folder-structure")
+      .then((res) => res.json())
+      .then((data) => setStructure(data))
+      .catch((err) => console.error(err));
+  }, []);
 
   return (
     <Box
@@ -87,7 +114,10 @@ const FolderStructure: FC = () => {
         overflowY: 'auto'
       }}
     >
-      <SidebarItem item={folderStructure} level={0} />
+      {/* <SidebarItem nodes={structure} /> */}
+      {structure.map((item) => (
+        <SidebarItem key={item.name} item={item} />
+      ))}
     </Box>
   );
 };

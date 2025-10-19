@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer} from 'http'
-import { ptyProcess } from "./services/pseudoTerminal.ts";
+// import { ptyProcess } from "./services/pseudoTerminal.ts";
 import cors from "cors";
 
 
@@ -17,7 +17,7 @@ export function initSocket(server :HttpServer): void {
 
     socket.on('terminal:write', (data: string): void => {
       console.log("data from client", data);
-      ptyProcess.write(`${data}`);
+      // ptyProcess.write(`${data}`);
     })
     
     socket.on("join-playground", (playgroundId: string) => {
@@ -35,8 +35,8 @@ export function initSocket(server :HttpServer): void {
     // Log server ready
   });
 
-  ptyProcess.onData((data: string):void =>{
-    console.log("data from server:", data);
-    io.emit('terminal:data', data);
-  })
+  // ptyProcess.onData((data: string):void =>{
+  //   console.log("data from server:", data);
+  //   io.emit('terminal:data', data);
+  // })
 }

@@ -136,7 +136,7 @@ const TerminalFrontend: React.FC = () => {
         cursorBlink: true,
         fontSize: 14,
         theme: {
-          background: "#1e1e1e",
+          background: "#000",
           foreground: "#ffffff",
         },
       });

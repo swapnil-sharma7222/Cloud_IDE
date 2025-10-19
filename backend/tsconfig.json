@@ -10,7 +10,8 @@
     "resolveJsonModule": true,          // Allow importing JSON files
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
-    "noEmit": true             // Skip checking declaration files
+    "noEmit": true,             // Skip checking declaration files
+    "forceConsistentCasingInFileNames": true,
   },
   "include": ["src/**/*.ts"],           // Include the source directory
   "exclude": ["node_modules"]           // Exclude node_modules

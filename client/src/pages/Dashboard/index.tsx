@@ -137,7 +137,7 @@ const Dashboard: React.FC = () => {
             className="column"
             style={{ width: `${columnWidths.column3}%` }}
           >
-            <WebView/>
+            {/* <WebView/> */}
           </div>
 
           <div className="terminal-wrapper">
