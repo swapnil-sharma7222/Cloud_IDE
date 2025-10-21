@@ -11,18 +11,21 @@ export interface FileTabProps {
 interface FileContent {
   code: string;
   timestamp: number;
+  isDirty: boolean;
 }
 
 interface FileTabState {
   fileTabs: Map<string, FileTabProps>;        
   fileCache: Map<string, FileContent>;        
   activeTabFullPath: string | null;
+  dirtyFiles: Set<string>;
 }
 
 const initialState: FileTabState = {
   fileTabs: new Map(),
   fileCache: new Map(),
   activeTabFullPath: null,
+  dirtyFiles: new Set(),
 };
 
 const MAX_CACHE_SIZE = 5;
@@ -40,6 +43,7 @@ export const fileTabSlice = createSlice({
         state.fileCache.set(action.payload.filepath, {
           code: code,
           timestamp: Date.now(),
+          isDirty: false,
         });
 
         // Limit cache size to MAX_CACHE_SIZE
@@ -141,17 +145,43 @@ export const fileTabSlice = createSlice({
       }
     },
 
+    // updateFileCode: (state, action: PayloadAction<{ filepath: string; code: string }>) => {
+    //   // Update in both tab and cache
+    //   const file = state.fileTabs.get(action.payload.filepath);
+    //   if (file) {
+    //     // Note: FileTabProps doesn't have 'code', so we only update cache
+    //     const cached = state.fileCache.get(action.payload.filepath);
+    //     if (cached) {
+    //       cached.code = action.payload.code;
+    //       cached.timestamp = Date.now();
+    //     }
+    //   }
+    // },
+
     updateFileCode: (state, action: PayloadAction<{ filepath: string; code: string }>) => {
-      // Update in both tab and cache
-      const file = state.fileTabs.get(action.payload.filepath);
-      if (file) {
-        // Note: FileTabProps doesn't have 'code', so we only update cache
-        const cached = state.fileCache.get(action.payload.filepath);
-        if (cached) {
+      const cached = state.fileCache.get(action.payload.filepath);
+      if (cached) {
+        // ✅ Only mark as dirty if code actually changed
+        if (cached.code !== action.payload.code) {
           cached.code = action.payload.code;
           cached.timestamp = Date.now();
+          cached.isDirty = true;
+          state.dirtyFiles.add(action.payload.filepath);
         }
       }
+    },
+
+    markFileSaved: (state, action: PayloadAction<string>) => {
+      const cached = state.fileCache.get(action.payload);
+      if (cached) {
+        cached.isDirty = false;
+      }
+      state.dirtyFiles.delete(action.payload);
+    },
+
+    saveAllFiles: (state) => {
+      // This will be used to trigger save-all action
+      // The actual save logic will be in a thunk
     },
 
     // Clear stale cache entries (called manually or on app init)
@@ -182,7 +212,9 @@ export const {
   addFileTab, 
   removeFileTab, 
   setActiveTab, 
-  updateFileCode, 
+  updateFileCode,
+  markFileSaved,
+  saveAllFiles,
   clearStaleCache,
   clearAllCache 
 } = fileTabSlice.actions;

@@ -9,6 +9,8 @@ export default function FileTabs() {
   const dispatch = useDispatch<AppDispatch>();
   const fileTabs = useSelector((state: RootState) => state.fileTab.fileTabs);
   const activeTabPath = useSelector((state: RootState) => state.fileTab.activeTabFullPath);
+  const dirtyFiles = useSelector((state: RootState) => state.fileTab.dirtyFiles); 
+
 
   const handleTabClick = (event: React.SyntheticEvent, filepath: string) => {
     dispatch(setActiveTab(filepath));
@@ -16,6 +18,11 @@ export default function FileTabs() {
 
   const handleTabClose = (filepath: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (dirtyFiles.has(filepath)) {
+      if (!window.confirm('File has unsaved changes. Close anyway?')) {
+        return;
+      }
+    }
     dispatch(removeFileTab(filepath));
   };
 
@@ -58,6 +65,9 @@ export default function FileTabs() {
                 >
                   {tab.filename}
                 </Typography>
+                {dirtyFiles.has(tab.filepath) && (
+                  <span style={{ color: "#f4a81bff", fontSize: "15px", paddingBlockEnd: "2px", paddingRight: "2px" }}>●</span>
+                )}
                 <IoMdCloseCircle
                   size={16}
                   onClick={(e) => handleTabClose(tab.filepath, e)}
