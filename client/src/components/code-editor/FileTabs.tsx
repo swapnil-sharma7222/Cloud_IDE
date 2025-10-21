@@ -1,63 +1,74 @@
-// FileTabs.tsx
 import React from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { RootState, AppDispatch } from "../../app/store.ts";
-import { setActiveTab, removeFileTab } from "../../features/FileTabs/fileTabSlice";
+import { useDispatch, useSelector } from "react-redux";
 import { Tabs, Tab, Box, Typography } from "@mui/material";
 import { IoMdCloseCircle } from "react-icons/io";
+import { AppDispatch, RootState } from "../../app/store";
+import { setActiveTab, removeFileTab } from "../../features/FileTabs/fileTabSlice";
 
-const FileTabs: React.FC = () => {
+export default function FileTabs() {
   const dispatch = useDispatch<AppDispatch>();
-  const fileTabsMap = useSelector((state: RootState) => state.fileTab.fileTabs);
+  const fileTabs = useSelector((state: RootState) => state.fileTab.fileTabs);
+  const activeTabPath = useSelector((state: RootState) => state.fileTab.activeTabFullPath);
 
-  // Convert the Map to an array for rendering
-  const fileTabs = Array.from(fileTabsMap.values());
-
-  // Find the active tab's filepath
-  const activeTab = fileTabs.find((tab) => tab.isActive)?.filepath || false;
-
-  const handleChange = (event: React.SyntheticEvent, newValue: string) => {
-    dispatch(setActiveTab(newValue));
+  const handleTabClick = (event: React.SyntheticEvent, filepath: string) => {
+    dispatch(setActiveTab(filepath));
   };
 
-  const handleClose = (filepath: string) => (event: React.MouseEvent<HTMLDivElement>) => {
-    event.stopPropagation(); // Prevent triggering tab selection
+  const handleTabClose = (filepath: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     dispatch(removeFileTab(filepath));
   };
 
   return (
     <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
       <Tabs
-        value={activeTab}
-        onChange={handleChange}
+        value={activeTabPath}
+        onChange={handleTabClick}
         variant="scrollable"
         scrollButtons="auto"
         aria-label="file tabs"
         TabIndicatorProps={{
           style: {
             backgroundColor: "#ffffff",
-          }
+          },
         }}
-        >
-        {fileTabs.map((tab) => (
-          <Tab 
+      >
+        {Array.from(fileTabs.values()).map((tab) => (
+          <Tab
             key={tab.filepath}
+            value={tab.filepath}
             label={
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <Typography 
-                variant="caption"
-                  sx={{color: tab.isActive ? "#ffffff" : "#9e9e9e", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", mr: 1 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  "&:hover svg": { opacity: 1 },
+                  "svg": { opacity: 0.5, transition: "opacity 0.2s ease" },
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: tab.isActive ? "#ffffff" : "#9e9e9e",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    mr: 1,
+                  }}
+                >
                   {tab.filename}
-              </Typography>
-                <IoMdCloseCircle onClick={handleClose(tab.filepath)} color={tab.isActive ? "#ffffff" : "#9e9e9e"}/>
+                </Typography>
+                <IoMdCloseCircle
+                  size={16}
+                  onClick={(e) => handleTabClose(tab.filepath, e)}
+                  color={tab.isActive ? "#ffffff" : "#9e9e9e"}
+                  style={{ cursor: "pointer" }}
+                />
               </Box>
             }
-            value={tab.filepath}
           />
         ))}
       </Tabs>
     </Box>
   );
-};
-
-export default FileTabs;
+}

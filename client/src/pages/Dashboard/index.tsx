@@ -3,6 +3,7 @@ import "./dashboard.css";
 import { CodeEditor } from "../../components/code-editor";
 import TerminalComponent from "../../components/terminal";
 import FolderStructure from "../../components/side-bar/FolderStructure";
+import WebView from "../../components/web-view";
 
 interface ColumnWidths {
   column1: number;
@@ -123,7 +124,7 @@ const Dashboard: React.FC = () => {
           {/* Column 2 */}
           <div
             className="column"
-            style={{ width: `${columnWidths.column2}%` }}
+            style={{ width: `${columnWidths.column2}%`, overflow: 'hidden' }}
           >
             <CodeEditor/>
           </div>
@@ -136,7 +137,7 @@ const Dashboard: React.FC = () => {
             className="column"
             style={{ width: `${columnWidths.column3}%` }}
           >
-            Column 3
+            {/* <WebView/> */}
           </div>
 
           <div className="terminal-wrapper">
@@ -160,7 +161,13 @@ const Dashboard: React.FC = () => {
                 width: `${terminalWidth}%`,
               }}
             >
-              <TerminalComponent/>
+              <div
+                style={{
+                  height: "100%",
+                }}
+              >
+                <TerminalComponent/>
+              </div>
             </div>
           </div>
         </div>

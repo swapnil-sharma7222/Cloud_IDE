@@ -1,100 +1,190 @@
-// fileTabSlice.ts
+// DYNAMIC CODE TAB SLICE WITH CODE UPDATE ACTION WITH FILE CACHING MECHANISM
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-// Define the properties of a single file tab
 export interface FileTabProps {
   filename: string;
   filepath: string;
   overlap: number;
   isActive: boolean;
-  code: string;
 }
 
-// Define the initial state structure
+interface FileContent {
+  code: string;
+  timestamp: number;
+}
+
 interface FileTabState {
-  fileTabs: Map<string, FileTabProps>; // Keyed by filepath for uniqueness
-  activeTabFullPath: string | undefined,
+  fileTabs: Map<string, FileTabProps>;        
+  fileCache: Map<string, FileContent>;        
+  activeTabFullPath: string | null;
 }
 
 const initialState: FileTabState = {
-  fileTabs: new Map<string, FileTabProps>(),
-  activeTabFullPath: undefined,
+  fileTabs: new Map(),
+  fileCache: new Map(),
+  activeTabFullPath: null,
 };
 
-// Create the slice
+const MAX_CACHE_SIZE = 5;
+
 export const fileTabSlice = createSlice({
   name: "fileTab",
   initialState,
   reducers: {
-    // Action to add a new file tab
-    addFileTab: (state, action: PayloadAction<FileTabProps>) => {
-        
-      if(!state.fileTabs.has(action.payload.filepath)) {
-        if(state.activeTabFullPath !== undefined) {
-            const currSelectedFile = state.fileTabs.get(state.activeTabFullPath)
-            currSelectedFile!.isActive = false
-        }
-        // Add or update the new tab and set it as active
-        state.fileTabs.set(action.payload.filepath, {
-            ...action.payload,
-            isActive: true,
+    addFileTab: (state, action: PayloadAction<FileTabProps & { code: string }>) => {
+      const { code, ...tabInfo } = action.payload;
+      
+      // Check if file is already cached
+      if (!state.fileCache.has(action.payload.filepath)) {
+        // Add to cache
+        state.fileCache.set(action.payload.filepath, {
+          code: code,
+          timestamp: Date.now(),
         });
-        state.activeTabFullPath = action.payload.filepath
-      } else {
-        if(state.activeTabFullPath != undefined && state.activeTabFullPath !== action.payload.filepath) {
-            // Activate the selected tab
-            const selectedTab = state.fileTabs.get(action.payload.filepath);
-            if (selectedTab) {
-                selectedTab.isActive = true;  
-            }
 
-            const currSelectedFile = state.fileTabs.get(state.activeTabFullPath)
-            currSelectedFile!.isActive = false
-            
-            state.activeTabFullPath = action.payload.filepath
+        // Limit cache size to MAX_CACHE_SIZE
+        if (state.fileCache.size > MAX_CACHE_SIZE) {
+          // Find oldest entry that is NOT in active tabs
+          let oldestFilepath: string | null = null;
+          let oldestTimestamp = Date.now();
+
+          for (const [filepath, cached] of state.fileCache.entries()) {
+            // Don't remove files that are currently open as tabs
+            if (!state.fileTabs.has(filepath) && cached.timestamp < oldestTimestamp) {
+              oldestTimestamp = cached.timestamp;
+              oldestFilepath = filepath;
+            }
+          }
+
+          // Remove oldest entry
+          if (oldestFilepath) {
+            state.fileCache.delete(oldestFilepath);
+          }
+        }
+      } else {
+        // Update timestamp for existing cache entry
+        const cached = state.fileCache.get(action.payload.filepath);
+        if (cached) {
+          cached.timestamp = Date.now();
+          cached.code = code; // Update with latest code
         }
       }
 
+      // Handle tab visibility
+      if (!state.fileTabs.has(action.payload.filepath)) {
+        // Deactivate current tab
+        if (state.activeTabFullPath) {
+          const currSelectedFile = state.fileTabs.get(state.activeTabFullPath);
+          if (currSelectedFile) currSelectedFile.isActive = false;
+        }
+        
+        // Add new tab
+        state.fileTabs.set(action.payload.filepath, {
+          ...tabInfo,
+          isActive: true,
+        });
+        state.activeTabFullPath = action.payload.filepath;
+      } else {
+        // Tab already exists, just activate it
+        if (state.activeTabFullPath !== action.payload.filepath) {
+          // Deactivate current
+          if (state.activeTabFullPath) {
+            const currSelectedFile = state.fileTabs.get(state.activeTabFullPath);
+            if (currSelectedFile) currSelectedFile.isActive = false;
+          }
+          
+          // Activate selected
+          const selectedTab = state.fileTabs.get(action.payload.filepath);
+          if (selectedTab) {
+            selectedTab.isActive = true;
+            state.activeTabFullPath = action.payload.filepath;
+          }
+        }
+      }
     },
 
-    // Action to remove a file tab
     removeFileTab: (state, action: PayloadAction<string>) => {
-      // Remove the tab by filepath
+      // Remove from tab list ONLY (cache persists)
       state.fileTabs.delete(action.payload);
 
-      // If the removed tab was active, activate the first available tab
       if (action.payload === state.activeTabFullPath) {
         const firstTab = state.fileTabs.values().next().value;
         if (firstTab) {
           firstTab.isActive = true;
-          state.activeTabFullPath = firstTab.filepath
+          state.activeTabFullPath = firstTab.filepath;
+        } else {
+          state.activeTabFullPath = null;
         }
       }
-
-      if(state.fileTabs.size === 0) state.activeTabFullPath = undefined;
     },
 
-    // Action to set a specific tab as active
     setActiveTab: (state, action: PayloadAction<string>) => {
-        // Deactivate all tabs
-        if(state.activeTabFullPath != undefined && state.activeTabFullPath !== action.payload) {
-            // Activate the selected tab
-            const selectedTab = state.fileTabs.get(action.payload);
-            if (selectedTab) {
-                selectedTab.isActive = true;  
-            }
-
-            const currSelectedFile = state.fileTabs.get(state.activeTabFullPath)
-            currSelectedFile!.isActive = false
-            
-            state.activeTabFullPath = action.payload
+      if (state.activeTabFullPath !== action.payload) {
+        // Deactivate current
+        if (state.activeTabFullPath) {
+          const currSelectedFile = state.fileTabs.get(state.activeTabFullPath);
+          if (currSelectedFile) currSelectedFile.isActive = false;
         }
+        
+        // Activate selected
+        const selectedTab = state.fileTabs.get(action.payload);
+        if (selectedTab) {
+          selectedTab.isActive = true;
+          state.activeTabFullPath = action.payload;
+
+          // Update timestamp in cache
+          const cached = state.fileCache.get(action.payload);
+          if (cached) {
+            cached.timestamp = Date.now();
+          }
+        }
+      }
+    },
+
+    updateFileCode: (state, action: PayloadAction<{ filepath: string; code: string }>) => {
+      // Update in both tab and cache
+      const file = state.fileTabs.get(action.payload.filepath);
+      if (file) {
+        // Note: FileTabProps doesn't have 'code', so we only update cache
+        const cached = state.fileCache.get(action.payload.filepath);
+        if (cached) {
+          cached.code = action.payload.code;
+          cached.timestamp = Date.now();
+        }
+      }
+    },
+
+    // Clear stale cache entries (called manually or on app init)
+    clearStaleCache: (state) => {
+      const oneHourAgo = Date.now() - 3600000; // 1 hour
+
+      for (const [filepath, cached] of state.fileCache.entries()) {
+        // Don't remove files that are currently open as tabs
+        if (!state.fileTabs.has(filepath) && cached.timestamp < oneHourAgo) {
+          state.fileCache.delete(filepath);
+        }
+      }
+    },
+
+    // Manual cache clear (optional)
+    clearAllCache: (state) => {
+      // Keep only files that are currently open as tabs
+      for (const filepath of state.fileCache.keys()) {
+        if (!state.fileTabs.has(filepath)) {
+          state.fileCache.delete(filepath);
+        }
+      }
     },
   },
 });
 
-// Export the actions
-export const { addFileTab, removeFileTab, setActiveTab } = fileTabSlice.actions;
+export const { 
+  addFileTab, 
+  removeFileTab, 
+  setActiveTab, 
+  updateFileCode, 
+  clearStaleCache,
+  clearAllCache 
+} = fileTabSlice.actions;
 
-// Export the reducer to be included in the store
 export default fileTabSlice.reducer;
