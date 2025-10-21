@@ -9,13 +9,8 @@ import { initSocket } from "./socket.ts";
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from "url";
+import { containerPath } from './utils/containerPath.ts';
 
-
-// import io from './socket'
-
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const app = express();
 const server= createServer(app);
 app.use(express.json());
@@ -25,7 +20,6 @@ dotenv.config({ path: './.env' });
 // connectdb();
 initSocket(server)
 
-const ROOT_DIR = "C:/Users/E174087/Desktop/newFolder/folder";
 
 export interface FileNode {
   name: string;
@@ -55,9 +49,27 @@ export function getFolderStructure(dir: string): FileNode[] {
   });
 }
 
+app.get("/v1/api/file-data", (req, res) => {
+  let filePath = req.query.path as string;
+  filePath = containerPath + filePath
+  console.log(filePath);
+
+  if (!filePath) {
+    return res.status(400).json({ error: "Missing file path" });
+  }
+
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    res.json({ content });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to read file" });
+  }
+});
+
 app.get("/v1/api/folder-structure", (req, res) => {
   try {
-    const structure = getFolderStructure(ROOT_DIR);
+    const structure = getFolderStructure(containerPath);
     res.json(structure);
   } catch (err) {
     console.error(err);
@@ -73,30 +85,3 @@ app.get("/", (req, res):void => {
 server.listen(PORT, (): void => {
   console.log(`Socket.IO server started at http://localhost:${PORT}`);
 });
-
-
-// const io = new Server(server, {
-//   cors: {
-//     origin: '*', // Allow all origins for testing
-//   },
-// });
-
-// io.on('connection', (socket: Socket) => {
-//   console.log(`User connected: ${socket.id}`);
-
-//   socket.on('join-playground', (playgroundId: string) => {
-//     console.log(`User ${socket.id} joined ${playgroundId}`);
-//     socket.join(playgroundId);
-//   });
-
-//   socket.on('code-change', (playgroundId: string, content: string) => {
-//     console.log(`Code change in ${playgroundId}: ${content}`);
-//   });
-
-//   socket.on('disconnect', () => {
-//     console.log(`User ${socket.id} disconnected`);
-//   });
-//   // Log server ready
-//   console.log("WebSocket server is ready.");
-// });
-

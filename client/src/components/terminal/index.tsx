@@ -154,7 +154,7 @@ const TerminalFrontend: React.FC = () => {
       fitAddon.current.fit();
 
       // Initialize Socket.IO connection
-      socket.current = io("ws://localhost:8080/");
+      socket.current = io("ws://localhost:4200/");
 
       socket.current.on("connect", () => {
         console.log("Connected to Socket.IO server");
