@@ -14,9 +14,20 @@ export const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: {
         // Ignore actions that handle non-serializable data
-        ignoredActions: ["fileTab/addFileTab", "fileTab/removeFileTab", "fileTab/setActiveTab"],
+        ignoredActions: [
+          "fileTab/addFileTab",
+          "fileTab/removeFileTab",
+          "fileTab/setActiveTab",
+          "fileTab/updateFileCode",
+          "fileTab/markFileSaved",
+          "fileTab/saveAllFiles"
+        ],
         // Ignore specific paths in the state
-        ignoredPaths: ["fileTab.fileTabs"],
+        ignoredPaths: [
+          "fileTab.fileTabs",
+          "fileTab.fileCache",
+          "fileTab.dirtyFiles",
+        ],
       },
     }),
 });

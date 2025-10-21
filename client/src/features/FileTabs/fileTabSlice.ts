@@ -9,20 +9,24 @@ export interface FileTabProps {
 }
 
 interface FileContent {
-  code: string;
+  code: string;                    
+  lastSavedCode: string;
   timestamp: number;
+  isDirty: boolean;
 }
 
 interface FileTabState {
-  fileTabs: Map<string, FileTabProps>;        
-  fileCache: Map<string, FileContent>;        
+  fileTabs: Map<string, FileTabProps>;
+  fileCache: Map<string, FileContent>;
   activeTabFullPath: string | null;
+  dirtyFiles: Set<string>;
 }
 
 const initialState: FileTabState = {
   fileTabs: new Map(),
   fileCache: new Map(),
   activeTabFullPath: null,
+  dirtyFiles: new Set(),
 };
 
 const MAX_CACHE_SIZE = 5;
@@ -36,64 +40,55 @@ export const fileTabSlice = createSlice({
       
       // Check if file is already cached
       if (!state.fileCache.has(action.payload.filepath)) {
-        // Add to cache
         state.fileCache.set(action.payload.filepath, {
           code: code,
+          lastSavedCode: code,
           timestamp: Date.now(),
+          isDirty: false,
         });
 
         // Limit cache size to MAX_CACHE_SIZE
         if (state.fileCache.size > MAX_CACHE_SIZE) {
-          // Find oldest entry that is NOT in active tabs
           let oldestFilepath: string | null = null;
           let oldestTimestamp = Date.now();
 
           for (const [filepath, cached] of state.fileCache.entries()) {
-            // Don't remove files that are currently open as tabs
             if (!state.fileTabs.has(filepath) && cached.timestamp < oldestTimestamp) {
               oldestTimestamp = cached.timestamp;
               oldestFilepath = filepath;
             }
           }
 
-          // Remove oldest entry
           if (oldestFilepath) {
             state.fileCache.delete(oldestFilepath);
           }
         }
       } else {
-        // Update timestamp for existing cache entry
         const cached = state.fileCache.get(action.payload.filepath);
         if (cached) {
           cached.timestamp = Date.now();
-          cached.code = code; // Update with latest code
         }
       }
 
       // Handle tab visibility
       if (!state.fileTabs.has(action.payload.filepath)) {
-        // Deactivate current tab
         if (state.activeTabFullPath) {
           const currSelectedFile = state.fileTabs.get(state.activeTabFullPath);
           if (currSelectedFile) currSelectedFile.isActive = false;
         }
         
-        // Add new tab
         state.fileTabs.set(action.payload.filepath, {
           ...tabInfo,
           isActive: true,
         });
         state.activeTabFullPath = action.payload.filepath;
       } else {
-        // Tab already exists, just activate it
         if (state.activeTabFullPath !== action.payload.filepath) {
-          // Deactivate current
           if (state.activeTabFullPath) {
             const currSelectedFile = state.fileTabs.get(state.activeTabFullPath);
             if (currSelectedFile) currSelectedFile.isActive = false;
           }
           
-          // Activate selected
           const selectedTab = state.fileTabs.get(action.payload.filepath);
           if (selectedTab) {
             selectedTab.isActive = true;
@@ -104,7 +99,6 @@ export const fileTabSlice = createSlice({
     },
 
     removeFileTab: (state, action: PayloadAction<string>) => {
-      // Remove from tab list ONLY (cache persists)
       state.fileTabs.delete(action.payload);
 
       if (action.payload === state.activeTabFullPath) {
@@ -118,21 +112,27 @@ export const fileTabSlice = createSlice({
       }
     },
 
+    discardChanges: (state, action: PayloadAction<string>) => {
+      const cached = state.fileCache.get(action.payload);
+      if (cached) {
+        cached.code = cached.lastSavedCode;  // ✅ Revert to last saved
+        cached.isDirty = false;
+        state.dirtyFiles.delete(action.payload);
+      }
+    },
+
     setActiveTab: (state, action: PayloadAction<string>) => {
       if (state.activeTabFullPath !== action.payload) {
-        // Deactivate current
         if (state.activeTabFullPath) {
           const currSelectedFile = state.fileTabs.get(state.activeTabFullPath);
           if (currSelectedFile) currSelectedFile.isActive = false;
         }
         
-        // Activate selected
         const selectedTab = state.fileTabs.get(action.payload);
         if (selectedTab) {
           selectedTab.isActive = true;
           state.activeTabFullPath = action.payload;
 
-          // Update timestamp in cache
           const cached = state.fileCache.get(action.payload);
           if (cached) {
             cached.timestamp = Date.now();
@@ -142,33 +142,55 @@ export const fileTabSlice = createSlice({
     },
 
     updateFileCode: (state, action: PayloadAction<{ filepath: string; code: string }>) => {
-      // Update in both tab and cache
-      const file = state.fileTabs.get(action.payload.filepath);
-      if (file) {
-        // Note: FileTabProps doesn't have 'code', so we only update cache
-        const cached = state.fileCache.get(action.payload.filepath);
-        if (cached) {
+      const cached = state.fileCache.get(action.payload.filepath);
+      if (cached) {
+        // ✅ Compare against lastSavedCode instead of original
+        if (cached.code !== action.payload.code) {
           cached.code = action.payload.code;
           cached.timestamp = Date.now();
+          
+          if (action.payload.code !== cached.lastSavedCode) {
+            cached.isDirty = true;
+            state.dirtyFiles.add(action.payload.filepath);
+          } else {
+            cached.isDirty = false;
+            state.dirtyFiles.delete(action.payload.filepath);
+          }
         }
       }
     },
 
-    // Clear stale cache entries (called manually or on app init)
+    markFileSaved: (state, action: PayloadAction<string>) => {
+      const cached = state.fileCache.get(action.payload);
+      if (cached) {
+        cached.lastSavedCode = cached.code;
+        cached.isDirty = false;
+      }
+      state.dirtyFiles.delete(action.payload);
+    },
+
+    saveAllFiles: (state) => {
+      // This will be used to trigger save-all action
+      for (const [filepath, cached] of state.fileCache.entries()) {
+        if (cached.isDirty) {
+          // Trigger save for each dirty file
+          // You can implement the actual save logic here
+          saveFile(filepath, cached.code);
+        }
+      }
+    },
+
     clearStaleCache: (state) => {
-      const oneHourAgo = Date.now() - 3600000; // 1 hour
+      const oneHourAgo = Date.now() - 3600000;
 
       for (const [filepath, cached] of state.fileCache.entries()) {
-        // Don't remove files that are currently open as tabs
         if (!state.fileTabs.has(filepath) && cached.timestamp < oneHourAgo) {
           state.fileCache.delete(filepath);
         }
       }
     },
 
-    // Manual cache clear (optional)
     clearAllCache: (state) => {
-      // Keep only files that are currently open as tabs
       for (const filepath of state.fileCache.keys()) {
         if (!state.fileTabs.has(filepath)) {
           state.fileCache.delete(filepath);
@@ -181,10 +203,19 @@ export const fileTabSlice = createSlice({
 export const { 
   addFileTab, 
   removeFileTab, 
+  discardChanges,
   setActiveTab, 
   updateFileCode, 
+  markFileSaved,
+  saveAllFiles,
   clearStaleCache,
   clearAllCache 
 } = fileTabSlice.actions;
 
 export default fileTabSlice.reducer;
+
+function saveFile(filepath: string, code: string) {
+  // Implement the actual save logic here
+
+  throw new Error("Function not implemented.");
+}

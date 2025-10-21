@@ -77,6 +77,36 @@ app.get("/v1/api/folder-structure", (req, res) => {
   }
 });
 
+
+app.post('/v1/api/save-file', express.json(), async (req, res) => {
+  const { filepath, content } = req.body;
+
+  if (!filepath || content === undefined) {
+    res.status(400).json({ error: 'filepath and content are required' });
+    return;
+  }
+
+  try {
+    const fullPath = path.join(containerPath, filepath);
+    
+    // Ensure directory exists
+    const dir = path.dirname(fullPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Write file
+    fs.writeFileSync(fullPath, content, 'utf8');
+    
+    console.log(`✅ Saved file: ${filepath}`);
+    res.json({ success: true, message: 'File saved successfully' });
+  } catch (err) {
+    console.error('❌ Failed to save file:', err);
+    res.status(500).json({ error: 'Failed to save file' });
+  }
+});
+
+
 const PORT: string|number  = process.env.PORT || 4200;
 app.get("/", (req, res):void => {
   res.send(`Server is running on port ${PORT}`);

@@ -6,7 +6,7 @@ import { Box } from "@mui/material";
 import FileTabs from "./FileTabs";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../app/store";
-import { updateFileCode } from "../../features/FileTabs/fileTabSlice";
+import { markFileSaved, updateFileCode } from "../../features/FileTabs/fileTabSlice";
 
 type Props = {
   theme?: string;
@@ -15,25 +15,11 @@ type Props = {
 export function CodeEditor({ theme }: Props) {
   const monaco = useMonaco();
   const dispatch = useDispatch();
-  
-  // const activeTabPath = useSelector((state: RootState) => state.fileTab.activeTabFullPath);
-  // const fileTabs = useSelector((state: RootState) => state.fileTab.fileTabs);
-  
-  // const activeFile = activeTabPath ? fileTabs.get(activeTabPath) : undefined;
-  
-  // const [editorValue, setEditorValue] = useState(activeFile?.code || "");
-
-  // useEffect(() => {
-  //   if (activeFile) {
-  //     setEditorValue(activeFile.code);
-  //   } else {
-  //     setEditorValue("");
-  //   }
-  // }, [activeTabPath, activeFile?.code]);
 
   const activeTabPath = useSelector((state: RootState) => state.fileTab.activeTabFullPath);
   const fileCache = useSelector((state: RootState) => state.fileTab.fileCache);
   const fileTabs = useSelector((state: RootState) => state.fileTab.fileTabs);
+  const dirtyFiles = useSelector((state: RootState) => state.fileTab.dirtyFiles); 
 
   const activeFile = activeTabPath ? fileTabs.get(activeTabPath) : undefined;
   const cachedContent = activeTabPath ? fileCache.get(activeTabPath) : undefined;
@@ -62,6 +48,40 @@ export function CodeEditor({ theme }: Props) {
       dispatch(updateFileCode({ filepath: activeTabPath, code: newValue }));
     }
   }
+
+  const handleSaveFile = async () => {
+    if (!activeTabPath || !cachedContent) return;
+
+    try {
+      const response = await fetch('http://localhost:4200/v1/api/save-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filepath: activeTabPath,
+          content: cachedContent.code,
+        }),
+      });
+
+      if (response.ok) {
+        dispatch(markFileSaved(activeTabPath));
+        console.log(`✅ Saved: ${activeTabPath}`);
+      }
+    } catch (err) {
+      console.error('❌ Failed to save file:', err);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveFile();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTabPath, cachedContent]);
 
   // language from filename
   const getLanguage = (filename: string): string => {
@@ -104,6 +124,12 @@ export function CodeEditor({ theme }: Props) {
       }}
     >
       <FileTabs />
+      {/* ✅ Show dirty indicator */}
+      {activeTabPath && dirtyFiles.has(activeTabPath) && (
+        <Box sx={{ padding: 1, backgroundColor: "#333", color: "#ffa500", fontSize: 12 }}>
+          ● Unsaved changes
+        </Box>
+      )}
       <Box
         sx={{
           flexGrow: 1,
