@@ -17,13 +17,17 @@ export function initSocket(server: HttpServer): void {
 
     // Create a shell for this socket
     terminalManager.createPty(socket, (data: string) => {
-      console.log('data from terminal', data);
+      console.log('data from terminal', data)
       socket.emit('terminal:data', data)
     })
 
     socket.on('terminal:write', (data: string): void => {
-      console.log('data from client', data)
-      terminalManager.write(socket.id, data)
+      const cleanData = data.replace(
+        /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g,
+        ''
+      )
+      console.log('data from client', cleanData)
+      terminalManager.write(socket.id, cleanData)
     })
 
     socket.on('join-playground', (playgroundId: string) => {
