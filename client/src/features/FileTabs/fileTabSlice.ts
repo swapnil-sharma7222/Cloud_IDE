@@ -1,5 +1,6 @@
 // DYNAMIC CODE TAB SLICE WITH CODE UPDATE ACTION WITH FILE CACHING MECHANISM
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { useDispatch } from "react-redux";
 
 export interface FileTabProps {
   filename: string;
@@ -115,7 +116,7 @@ export const fileTabSlice = createSlice({
     discardChanges: (state, action: PayloadAction<string>) => {
       const cached = state.fileCache.get(action.payload);
       if (cached) {
-        cached.code = cached.lastSavedCode;  // ✅ Revert to last saved
+        cached.code = cached.lastSavedCode;
         cached.isDirty = false;
         state.dirtyFiles.delete(action.payload);
       }
@@ -214,8 +215,26 @@ export const {
 
 export default fileTabSlice.reducer;
 
-function saveFile(filepath: string, code: string) {
-  // Implement the actual save logic here
+async function saveFile(filepath: string, code: string) {
+  const dispatch = useDispatch();
+  if (!filepath || !code) return;
 
-  throw new Error("Function not implemented.");
+  try {
+    const response = await fetch('http://localhost:4200/v1/api/save-file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filepath: filepath,
+        content: code,
+      }),
+    });
+
+    if (response.ok) {
+      dispatch(markFileSaved(filepath));
+      console.log(`✅ Saved: ${filepath}`);
+    }
+  } catch (err) {
+    console.error('❌ Failed to save file:', err);
+  }
 }
+
