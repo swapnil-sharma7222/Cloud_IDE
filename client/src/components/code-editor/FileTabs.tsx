@@ -1,63 +1,187 @@
-// FileTabs.tsx
+// import React from "react";
+// import { useDispatch, useSelector } from "react-redux";
+// import { Tabs, Tab, Box, Typography } from "@mui/material";
+// import { IoMdCloseCircle } from "react-icons/io";
+// import { AppDispatch, RootState } from "../../app/store";
+// import { setActiveTab, removeFileTab } from "../../features/FileTabs/fileTabSlice";
+
+// export default function FileTabs() {
+//   const dispatch = useDispatch<AppDispatch>();
+//   const fileTabs = useSelector((state: RootState) => state.fileTab.fileTabs);
+//   const activeTabPath = useSelector((state: RootState) => state.fileTab.activeTabFullPath);
+//   const dirtyFiles = useSelector((state: RootState) => state.fileTab.dirtyFiles);
+
+
+//   const handleTabClick = (event: React.SyntheticEvent, filepath: string) => {
+//     dispatch(setActiveTab(filepath));
+//   };
+
+//   const handleTabClose = (filepath: string, e: React.MouseEvent) => {
+//     e.stopPropagation();
+//     if (dirtyFiles.has(filepath)) {
+//       if (!window.confirm('File has unsaved changes. Close anyway?')) {
+//         return;
+//       }
+//     }
+//     dispatch(removeFileTab(filepath));
+//   };
+
+//   return (
+//     <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+//       <Tabs
+//         value={activeTabPath}
+//         onChange={handleTabClick}
+//         variant="scrollable"
+//         scrollButtons="auto"
+//         aria-label="file tabs"
+//         TabIndicatorProps={{
+//           style: {
+//             backgroundColor: "#ffffff",
+//           },
+//         }}
+//       >
+//         {Array.from(fileTabs.values()).map((tab) => (
+//           <Tab
+//             key={tab.filepath}
+//             value={tab.filepath}
+//             label={
+//               <Box
+//                 sx={{
+//                   display: "flex",
+//                   alignItems: "center",
+//                   "&:hover svg": { opacity: 1 },
+//                   "svg": { opacity: 0.5, transition: "opacity 0.2s ease" },
+//                 }}
+//               >
+//                 <Typography
+//                   variant="caption"
+//                   sx={{
+//                     color: tab.isActive ? "#ffffff" : "#9e9e9e",
+//                     whiteSpace: "nowrap",
+//                     overflow: "hidden",
+//                     textOverflow: "ellipsis",
+//                     mr: 1,
+//                   }}
+//                 >
+//                   {tab.filename}
+//                 </Typography>
+//                 {dirtyFiles.has(tab.filepath) && (
+//                   <span style={{ color: "#f4a81bff", fontSize: "15px", paddingBlockEnd: "2px", paddingRight: "2px" }}>●</span>
+//                 )}
+//                 <IoMdCloseCircle
+//                   size={16}
+//                   onClick={(e) => handleTabClose(tab.filepath, e)}
+//                   color={tab.isActive ? "#ffffff" : "#9e9e9e"}
+//                   style={{ cursor: "pointer" }}
+//                 />
+//               </Box>
+//             }
+//           />
+//         ))}
+//       </Tabs>
+//     </Box>
+//   );
+// }
+
+
 import React from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { RootState, AppDispatch } from "../../app/store.ts";
-import { setActiveTab, removeFileTab } from "../../features/FileTabs/fileTabSlice";
+import { useDispatch, useSelector } from "react-redux";
 import { Tabs, Tab, Box, Typography } from "@mui/material";
 import { IoMdCloseCircle } from "react-icons/io";
+import { AppDispatch, RootState } from "../../app/store";
+import { setActiveTab, removeFileTab, discardChanges } from "../../features/FileTabs/fileTabSlice";
 
-const FileTabs: React.FC = () => {
+export default function FileTabs() {
   const dispatch = useDispatch<AppDispatch>();
-  const fileTabsMap = useSelector((state: RootState) => state.fileTab.fileTabs);
+  const fileTabs = useSelector((state: RootState) => state.fileTab.fileTabs);
+  const activeTabPath = useSelector((state: RootState) => state.fileTab.activeTabFullPath);
+  const dirtyFiles = useSelector((state: RootState) => state.fileTab.dirtyFiles); 
 
-  // Convert the Map to an array for rendering
-  const fileTabs = Array.from(fileTabsMap.values());
-
-  // Find the active tab's filepath
-  const activeTab = fileTabs.find((tab) => tab.isActive)?.filepath || false;
-
-  const handleChange = (event: React.SyntheticEvent, newValue: string) => {
-    dispatch(setActiveTab(newValue));
+  const handleTabClick = (event: React.SyntheticEvent, filepath: string) => {
+    dispatch(setActiveTab(filepath));
   };
 
-  const handleClose = (filepath: string) => (event: React.MouseEvent<HTMLDivElement>) => {
-    event.stopPropagation(); // Prevent triggering tab selection
+  const handleTabClose = (filepath: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (dirtyFiles.has(filepath)) {
+      // ✅ Better UX: Custom confirmation dialog
+      const shouldDiscard = window.confirm(
+        'Do you want to discard unsaved changes?\n\n' +
+        '• Click OK to close without saving (changes will be lost)\n' +
+        '• Click Cancel to keep the tab open'
+      );
+      
+      if (!shouldDiscard) {
+        return;  // User cancelled, keep tab open
+      }
+      
+      // ✅ User confirmed: Revert to last saved state before closing
+      dispatch(discardChanges(filepath));
+    }
+    
+    // ✅ Now safe to close tab (either clean or reverted)
     dispatch(removeFileTab(filepath));
   };
 
   return (
     <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
       <Tabs
-        value={activeTab}
-        onChange={handleChange}
+        value={activeTabPath}
+        onChange={handleTabClick}
         variant="scrollable"
         scrollButtons="auto"
         aria-label="file tabs"
         TabIndicatorProps={{
           style: {
             backgroundColor: "#ffffff",
-          }
+          },
         }}
-        >
-        {fileTabs.map((tab) => (
-          <Tab 
+      >
+        {Array.from(fileTabs.values()).map((tab) => (
+          <Tab
             key={tab.filepath}
+            value={tab.filepath}
             label={
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <Typography 
-                variant="caption"
-                  sx={{color: tab.isActive ? "#ffffff" : "#9e9e9e", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", mr: 1 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  "&:hover svg": { opacity: 1 },
+                  "svg": { opacity: 0.5, transition: "opacity 0.2s ease" },
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: tab.isActive ? "#ffffff" : "#9e9e9e",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    mr: 1,
+                  }}
+                >
                   {tab.filename}
-              </Typography>
-                <IoMdCloseCircle onClick={handleClose(tab.filepath)} color={tab.isActive ? "#ffffff" : "#9e9e9e"}/>
+                </Typography>
+                {dirtyFiles.has(tab.filepath) && (
+                  <span style={{ 
+                    color: "#f4a81bff", 
+                    fontSize: "15px", 
+                    paddingBlockEnd: "2px", 
+                    paddingRight: "2px" 
+                  }}>●</span>
+                )}
+                <IoMdCloseCircle
+                  size={16}
+                  onClick={(e) => handleTabClose(tab.filepath, e)}
+                  color={tab.isActive ? "#ffffff" : "#9e9e9e"}
+                  style={{ cursor: "pointer" }}
+                />
               </Box>
             }
-            value={tab.filepath}
           />
         ))}
       </Tabs>
     </Box>
   );
-};
-
-export default FileTabs;
+}

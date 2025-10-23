@@ -52,6 +52,24 @@ export function getFolderStructure(dir: string): FileNode[] {
   })
 }
 
+app.get("/v1/api/file-data", (req, res) => {
+  let filePath = req.query.path as string;
+  filePath = containerPath + filePath
+  console.log(filePath);
+
+  if (!filePath) {
+    return res.status(400).json({ error: "Missing file path" });
+  }
+
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    res.json({ content });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to read file" });
+  }
+});
+
 app.get('/v1/api/folder-structure', (req, res) => {
   try {
     const structure = getFolderStructure(ROOT_DIR)
@@ -60,6 +78,37 @@ app.get('/v1/api/folder-structure', (req, res) => {
     console.error(err)
     res.status(500).json({ error: 'Failed to read folder structure' })
   }
+});
+
+
+app.post('/v1/api/save-file', express.json(), async (req, res) => {
+  const { filepath, content } = req.body;
+
+  if (!filepath || content === undefined) {
+    res.status(400).json({ error: 'filepath and content are required' });
+    return;
+  }
+
+  try {
+    const fullPath = path.join(containerPath, filepath);
+    
+    // Ensure directory exists
+    const dir = path.dirname(fullPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Write file
+    fs.writeFileSync(fullPath, content, 'utf8');
+    
+    console.log(`✅ Saved file: ${filepath}`);
+    res.json({ success: true, message: 'File saved successfully' });
+  } catch (err) {
+    console.error('❌ Failed to save file:', err);
+    res.status(500).json({ error: 'Failed to save file' });
+  }
+});
+
 })
 
 const PORT: string | number = process.env.PORT || 4200
