@@ -120,16 +120,24 @@ async function execute(command: string[], req: Request, res: Response) {
 app.get('/execute/', express.json(), async (req: Request, res: Response) => {
   // const { roomId } = req.params;
   // const { command } = req.body; // command should be an array like ['sh', '-c', 'cd /home/appuser && touch hello.js']
-  
+
   // const roomInfo = roomContainerMap[roomId];
-  
+
   // if (!roomInfo) {
   //   res.status(404).send('Room not found');
   //   return;
   // }
-  
-  
-  const commandString= "cd home/appuser/folder && touch hello.js"
+  /**
+   * const express= require("express")
+
+    const app= express();
+    app.use(express.json());
+
+    app.listen(1000, ()=> {
+        console.log("Server is running on port 1000")
+    })
+   */  
+  const commandString= "cd home/appuser/folder && mkdir express && cd express && touch index.js"
   const command= ['sh', '-c', commandString]
   await execute(command, req, res)
 });
@@ -139,8 +147,9 @@ app.post('/run', async (req: Request, res: Response) => {
   
   const escapedContent = string.replace(/'/g, "'\\''");
 
-  const commandString = `echo '${escapedContent}' > ${filePath} && node hello.js`;
-  const c= "node hello.js"
+  // const commandString = `echo '${escapedContent}' > ${filePath} && node hello.js`;
+  // const c= "node hello.js"
+  const commandString = `cd home/appuser/folder/express && node index.js`;
   const command = ['sh', '-c', commandString];
 
   await execute(command, req, res);
