@@ -132,9 +132,18 @@ app.get('/execute/', express.json(), async (req: Request, res: Response) => {
   //   res.status(404).send('Room not found');
   //   return;
   // }
+  /**
+   * const express= require("express")
 
-  const commandString = 'cd home/appuser/folder && touch hello.js'
-  const command = ['sh', '-c', commandString]
+    const app= express();
+    app.use(express.json());
+
+    app.listen(1000, ()=> {
+        console.log("Server is running on port 1000")
+    })
+   */  
+  const commandString= "cd home/appuser/folder && mkdir express && cd express && touch index.js"
+  const command= ['sh', '-c', commandString]
   await execute(command, req, res)
 })
 
@@ -143,9 +152,12 @@ app.post('/run', async (req: Request, res: Response) => {
 
   const escapedContent = string.replace(/'/g, "'\\''")
 
-  const commandString = `echo '${escapedContent}' > ${filePath} && node ${filePath}`
-  const command = ['sh', '-c', commandString]
-  await execute(command, req, res)
+  // const commandString = `echo '${escapedContent}' > ${filePath} && node hello.js`;
+  // const c= "node hello.js"
+  const commandString = `cd home/appuser/folder/express && node index.js`;
+  const command = ['sh', '-c', commandString];
+
+  await execute(command, req, res);
 })
 
 app.get('/rooms', (req: Request, res: Response) => {
