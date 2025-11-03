@@ -17,7 +17,7 @@ export function initSocket(server: HttpServer): void {
 
     // Create a shell for this socket
     terminalManager.createPty(socket, (data: string) => {
-      console.log('data from terminal', data)
+
       socket.emit('terminal:data', data)
     })
 

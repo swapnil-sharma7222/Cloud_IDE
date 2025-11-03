@@ -58,17 +58,17 @@ const createAndRunContainer = (req: Request, res: Response) => {
   })
 }
 
-app.get("/", (req: Request, res: Response) => {
-  res.send("Welcome to the Cloud IDE API");
-});
+app.get('/', (req: Request, res: Response) => {
+  res.send('Welcome to the Cloud IDE API')
+})
 
 app.get('/start', (req: Request, res: Response) => {
   var container = docker.getContainer(
-    '7a78e83b764befdf57c544b4770f688e5b4e2a8eefcf96481ab3c32e6ec5d986'
+    '92a5b0e9e35a9d0683b7cad0534483199cc73b1795d27fc328dabdf55346234a'
   )
-  // container.inspect(function (err, data) {
-  //   console.log(data);
-  // });
+  container.inspect(function (err, data) {
+    console.log(data)
+  })
 
   container.start(function (err, data) {
     console.log(data)
@@ -79,7 +79,7 @@ app.get('/start', (req: Request, res: Response) => {
 async function execute(command: string[], req: Request, res: Response) {
   try {
     const container = docker.getContainer(
-      '7a78e83b764befdf57c544b4770f688e5b4e2a8eefcf96481ab3c32e6ec5d986'
+      '92a5b0e9e35a9d0683b7cad0534483199cc73b1795d27fc328dabdf55346234a'
     )
 
     // Create exec instance

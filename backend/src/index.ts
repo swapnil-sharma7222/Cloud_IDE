@@ -10,6 +10,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import os from 'os'
+import { containerPath } from './utils/containerPath.ts'
 // import io from './socket'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -22,7 +23,7 @@ dotenv.config({ path: './.env' })
 // connectdb();
 initSocket(server)
 
-const ROOT_DIR = path.join(os.homedir(), '/Desktop/newFolder/folder')
+// const containerPath = path.join(os.homedir(), '/Desktop/newFolder/folder')
 
 export interface FileNode {
   name: string
@@ -30,85 +31,139 @@ export interface FileNode {
   children?: FileNode[]
 }
 
+// export function getFolderStructure(dir: string): FileNode[] {
+//   const items = fs.readdirSync(dir)
+
+//   return items.map((item) => {
+//     const fullPath = path.join(dir, item)
+//     const stats = fs.statSync(fullPath)
+
+//     if (stats.isDirectory()) {
+//       return {
+//         name: item,
+//         type: 'folder',
+//         children: getFolderStructure(fullPath),
+//       }
+//     } else {
+//       return {
+//         name: item,
+//         type: 'file',
+//       }
+//     }
+//   })
+// }
+// Add near the top (after interfaces) or above getFolderStructure
+const IGNORED_DIRS = new Set([
+  'node_modules',
+  '.git',
+  '.cache',
+  '.next',
+  'dist',
+  'build',
+])
+
 export function getFolderStructure(dir: string): FileNode[] {
-  const items = fs.readdirSync(dir)
+  let entries: fs.Dirent[]
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true })
+  } catch {
+    // Unable to read this directory (permissions, etc.) → skip
+    return []
+  }
 
-  return items.map((item) => {
-    const fullPath = path.join(dir, item)
-    const stats = fs.statSync(fullPath)
+  return entries.map((entry): FileNode => {
+    const name = entry.name
 
-    if (stats.isDirectory()) {
+    // Skip known heavy/system folders
+    if (entry.isDirectory() && IGNORED_DIRS.has(name)) {
       return {
-        name: item,
+        name,
+        type: 'folder',
+        children: [],
+      }
+    }
+
+    // Do not follow symlinks to avoid permission issues and cycles
+    if (entry.isSymbolicLink()) {
+      return {
+        name,
+        type: 'file',
+      }
+    }
+
+    if (entry.isDirectory()) {
+      const fullPath = path.join(dir, name)
+      return {
+        name,
         type: 'folder',
         children: getFolderStructure(fullPath),
       }
-    } else {
-      return {
-        name: item,
-        type: 'file',
-      }
+    }
+
+    return {
+      name,
+      type: 'file',
     }
   })
 }
 
-app.get("/v1/api/file-data", (req, res) => {
-  let filePath = req.query.path as string;
-  filePath = ROOT_DIR + filePath
-  console.log(filePath);
+app.get('/v1/api/file-data', (req, res) => {
+  let filePath = req.query.path as string
+  filePath = containerPath + filePath
+  console.log(filePath)
 
   if (!filePath) {
-    return res.status(400).json({ error: "Missing file path" });
+    return res.status(400).json({ error: 'Missing file path' })
   }
 
   try {
-    const content = fs.readFileSync(filePath, "utf-8");
-    res.json({ content });
+    const content = fs.readFileSync(filePath, 'utf-8')
+    res.json({ content })
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to read file" });
+    console.error(err)
+    res.status(500).json({ error: 'Failed to read file' })
   }
-});
+})
 
 app.get('/v1/api/folder-structure', (req, res) => {
+  console.log(containerPath);
+  
   try {
-    const structure = getFolderStructure(ROOT_DIR)
+    const structure = getFolderStructure(containerPath)
     res.json(structure)
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Failed to read folder structure' })
   }
-});
-
+})
 
 app.post('/v1/api/save-file', express.json(), async (req, res) => {
-  const { filepath, content } = req.body;
+  const { filepath, content } = req.body
 
   if (!filepath || content === undefined) {
-    res.status(400).json({ error: 'filepath and content are required' });
-    return;
+    res.status(400).json({ error: 'filepath and content are required' })
+    return
   }
 
   try {
-    const fullPath = path.join(ROOT_DIR, filepath);
-    
+    const fullPath = path.join(containerPath, filepath)
+
     // Ensure directory exists
-    const dir = path.dirname(fullPath);
+    const dir = path.dirname(fullPath)
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(dir, { recursive: true })
     }
 
     // Write file
-    fs.writeFileSync(fullPath, content, 'utf8');
-    
-    console.log(`✅ Saved file: ${filepath}`);
-    res.json({ success: true, message: 'File saved successfully' });
-  } catch (err) {
-    console.error('❌ Failed to save file:', err);
-    res.status(500).json({ error: 'Failed to save file' });
-  }
-});
+    fs.writeFileSync(fullPath, content, 'utf8')
 
+    console.log(`✅ Saved file: ${filepath}`)
+    res.json({ success: true, message: 'File saved successfully' })
+  } catch (err) {
+    console.error('❌ Failed to save file:', err)
+    res.status(500).json({ error: 'Failed to save file' })
+  }
+})
 
 const PORT: string | number = process.env.PORT || 4200
 app.get('/', (req, res): void => {
