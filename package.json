@@ -1,0 +1,10 @@
+{
+  "name": "cloud-ide",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix init\" \"npm run dev --prefix client\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

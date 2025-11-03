@@ -54,7 +54,7 @@ export function getFolderStructure(dir: string): FileNode[] {
 
 app.get("/v1/api/file-data", (req, res) => {
   let filePath = req.query.path as string;
-  filePath = containerPath + filePath
+  filePath = ROOT_DIR + filePath
   console.log(filePath);
 
   if (!filePath) {
@@ -90,7 +90,7 @@ app.post('/v1/api/save-file', express.json(), async (req, res) => {
   }
 
   try {
-    const fullPath = path.join(containerPath, filepath);
+    const fullPath = path.join(ROOT_DIR, filepath);
     
     // Ensure directory exists
     const dir = path.dirname(fullPath);
@@ -109,7 +109,6 @@ app.post('/v1/api/save-file', express.json(), async (req, res) => {
   }
 });
 
-})
 
 const PORT: string | number = process.env.PORT || 4200
 app.get('/', (req, res): void => {

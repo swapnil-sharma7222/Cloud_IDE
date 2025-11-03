@@ -60,7 +60,7 @@ const createAndRunContainer = (req: Request, res: Response) => {
 
 app.get('/start', (req: Request, res: Response) => {
   var container = docker.getContainer(
-    '68c332ec8ae367973b7ab6add18c048dbfe890d938266f62d5ea3d1468de148e'
+    '7c45db6041d1c833f68f64e9984fd6d57bf8a3a70e112e8fe26fafdb6b8b618e'
   )
   // container.inspect(function (err, data) {
   //   console.log(data);
@@ -69,13 +69,13 @@ app.get('/start', (req: Request, res: Response) => {
   container.start(function (err, data) {
     console.log(data)
   })
-  res.send('Container started');
+  res.send('Container started')
 })
 
 async function execute(command: string[], req: Request, res: Response) {
   try {
     const container = docker.getContainer(
-      '68c332ec8ae367973b7ab6add18c048dbfe890d938266f62d5ea3d1468de148e'
+      '7c45db6041d1c833f68f64e9984fd6d57bf8a3a70e112e8fe26fafdb6b8b618e'
     )
 
     // Create exec instance
@@ -141,9 +141,10 @@ app.get('/execute/', express.json(), async (req: Request, res: Response) => {
     app.listen(1000, ()=> {
         console.log("Server is running on port 1000")
     })
-   */  
-  const commandString= "cd home/appuser/folder && mkdir express && cd express && touch index.js"
-  const command= ['sh', '-c', commandString]
+   */
+  const commandString =
+    'cd home/appuser/folder && mkdir express && cd express && touch index.js'
+  const command = ['sh', '-c', commandString]
   await execute(command, req, res)
 })
 
@@ -154,10 +155,10 @@ app.post('/run', async (req: Request, res: Response) => {
 
   // const commandString = `echo '${escapedContent}' > ${filePath} && node hello.js`;
   // const c= "node hello.js"
-  const commandString = `cd home/appuser/folder/express && node index.js`;
-  const command = ['sh', '-c', commandString];
+  const commandString = `cd home/appuser/folder/express && node index.js`
+  const command = ['sh', '-c', commandString]
 
-  await execute(command, req, res);
+  await execute(command, req, res)
 })
 
 app.get('/rooms', (req: Request, res: Response) => {
