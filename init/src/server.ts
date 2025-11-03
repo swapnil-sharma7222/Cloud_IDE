@@ -58,6 +58,10 @@ const createAndRunContainer = (req: Request, res: Response) => {
   })
 }
 
+app.get("/", (req: Request, res: Response) => {
+  res.send("Welcome to the Cloud IDE API");
+});
+
 app.get('/start', (req: Request, res: Response) => {
   var container = docker.getContainer(
     '7c45db6041d1c833f68f64e9984fd6d57bf8a3a70e112e8fe26fafdb6b8b618e'
