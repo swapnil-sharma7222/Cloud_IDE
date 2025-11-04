@@ -30,29 +30,6 @@ export interface FileNode {
   type: 'file' | 'folder'
   children?: FileNode[]
 }
-
-// export function getFolderStructure(dir: string): FileNode[] {
-//   const items = fs.readdirSync(dir)
-
-//   return items.map((item) => {
-//     const fullPath = path.join(dir, item)
-//     const stats = fs.statSync(fullPath)
-
-//     if (stats.isDirectory()) {
-//       return {
-//         name: item,
-//         type: 'folder',
-//         children: getFolderStructure(fullPath),
-//       }
-//     } else {
-//       return {
-//         name: item,
-//         type: 'file',
-//       }
-//     }
-//   })
-// }
-// Add near the top (after interfaces) or above getFolderStructure
 const IGNORED_DIRS = new Set([
   'node_modules',
   '.git',
@@ -174,27 +151,3 @@ server.listen(PORT, (): void => {
   console.log(`Socket.IO server started at http://localhost:${PORT}`)
 })
 
-// const io = new Server(server, {
-//   cors: {
-//     origin: '*', // Allow all origins for testing
-//   },
-// });
-
-// io.on('connection', (socket: Socket) => {
-//   console.log(`User connected: ${socket.id}`);
-
-//   socket.on('join-playground', (playgroundId: string) => {
-//     console.log(`User ${socket.id} joined ${playgroundId}`);
-//     socket.join(playgroundId);
-//   });
-
-//   socket.on('code-change', (playgroundId: string, content: string) => {
-//     console.log(`Code change in ${playgroundId}: ${content}`);
-//   });
-
-//   socket.on('disconnect', () => {
-//     console.log(`User ${socket.id} disconnected`);
-//   });
-//   // Log server ready
-//   console.log("WebSocket server is ready.");
-// });

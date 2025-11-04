@@ -64,7 +64,7 @@ app.get('/', (req: Request, res: Response) => {
 
 app.get('/start', (req: Request, res: Response) => {
   var container = docker.getContainer(
-    '92a5b0e9e35a9d0683b7cad0534483199cc73b1795d27fc328dabdf55346234a'
+    '0b6a1a33715687454518c22fe7d6f3eea7186b7b5871488581ed5d335d4f417c'
   )
   container.inspect(function (err, data) {
     console.log(data)
@@ -79,7 +79,7 @@ app.get('/start', (req: Request, res: Response) => {
 async function execute(command: string[], req: Request, res: Response) {
   try {
     const container = docker.getContainer(
-      '92a5b0e9e35a9d0683b7cad0534483199cc73b1795d27fc328dabdf55346234a'
+      '0b6a1a33715687454518c22fe7d6f3eea7186b7b5871488581ed5d335d4f417c'
     )
 
     // Create exec instance
@@ -92,7 +92,7 @@ async function execute(command: string[], req: Request, res: Response) {
 
     // Start the exec and get output
     const stream = await exec.start({ hijack: true, stdin: false })
-
+    
     let output = ''
 
     stream.on('data', (chunk: Buffer) => {
@@ -159,7 +159,7 @@ app.post('/run', async (req: Request, res: Response) => {
 
   // const commandString = `echo '${escapedContent}' > ${filePath} && node hello.js`;
   // const c= "node hello.js"
-  const commandString = `cd home/appuser/folder/express && node index.js`
+  const commandString = `clear && fuser -k 3000/tcp 2>/dev/null; cd /home/app/user/my-react-app && npm run dev -- --port 3000`
   const command = ['sh', '-c', commandString]
 
   await execute(command, req, res)
