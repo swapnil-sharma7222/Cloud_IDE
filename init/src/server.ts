@@ -152,18 +152,31 @@ app.get('/execute/', express.json(), async (req: Request, res: Response) => {
   await execute(command, req, res)
 })
 
+let viteStarted = false // ✅ Persist across requests
+
 app.post('/run', async (req: Request, res: Response) => {
-  const { filePath } = req.body // filePath: 'home/appuser/folder/hello.js'
+  const { filePath, content } = req.body
 
-  const escapedContent = string.replace(/'/g, "'\\''")
+  const escapedContent = content.replace(/'/g, "'\\''")
 
-  // const commandString = `echo '${escapedContent}' > ${filePath} && node hello.js`;
-  // const c= "node hello.js"
-  const commandString = `clear && fuser -k 3000/tcp 2>/dev/null; cd /home/app/user/my-react-app && npm run dev -- --port 3000`
-  const command = ['sh', '-c', commandString]
+  async function startViteOnce() {
+    if (viteStarted) return
+    viteStarted = true
 
-  await execute(command, req, res)
+    const command = [
+      'sh',
+      '-c',
+      `cd /home/app/user/my-react-app && npm run dev -- --port 3000`,
+    ]
+
+    await execute(command, req, res) // ✅ fixed await
+  }
+
+  // ✅ Only start once when first /run call happens
+  await startViteOnce()
+
 })
+
 
 app.get('/rooms', (req: Request, res: Response) => {
   res.send(roomContainerMap)
