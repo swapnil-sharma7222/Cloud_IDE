@@ -166,6 +166,7 @@ const TerminalFrontend: React.FC = () => {
 
       // Handle incoming data from backend
       socket.current.on("terminal:data", (data: string) => {
+        console.log("this is data",data);
         term.current?.write(data);
       });
       // socket.current.on('terminal:data', (data: string): void => {
@@ -174,27 +175,40 @@ const TerminalFrontend: React.FC = () => {
       // });
 
       // Handle user input
-      term.current.onData((data) => {
-        const code = data.charCodeAt(0);
+     term.current.onData((data) => {
+       // Filter out all non-printable ASCII and escape sequences
+       const printableData = data.replace(
+         /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g,
+         ''
+       )
 
-        if (code === 13) {
-          // Enter key
-          term.current?.write("\r\n");
-          socket.current?.emit("terminal:write", inputBuffer.current + "\n");
-          inputBuffer.current = ""; // Clear the buffer
-        } else if (code === 127) {
-          // Backspace key
-          if (inputBuffer.current.length > 0) {
-            inputBuffer.current = inputBuffer.current.slice(0, -1);
-            term.current?.write("\b \b");
-          }
-        } else {
-          inputBuffer.current += data;
-          term.current?.write(data);
-        }
-      });
+       const code = printableData.charCodeAt(0)
 
-      // Clean up on component unmount
+       if (code === 13) {
+         // Enter key
+         term.current?.write('\r\n')
+         console.log('inputBuffer.current', inputBuffer.current)
+         socket.current?.emit(
+           'terminal:write',
+           inputBuffer.current.trim() + '\n'
+         )
+         inputBuffer.current = '' // Clear the buffer
+       } else if (code === 127) {
+         // Backspace
+         if (inputBuffer.current.length > 0) {
+           inputBuffer.current = inputBuffer.current.slice(0, -1)
+           term.current?.write('\b \b')
+         }
+       } else if (
+         printableData &&
+         printableData >= ' ' &&
+         printableData <= '~'
+       ) {
+         // Regular printable characters only
+         inputBuffer.current += printableData
+         term.current?.write(printableData)
+       }
+     })
       return () => {
         term.current?.dispose();
         fitAddon.current?.dispose();
