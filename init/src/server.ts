@@ -17,6 +17,7 @@ interface RoomInfo {
 
 const roomContainerMap: Record<string, RoomInfo> = {}
 const string = 'console.log("hello world swapnil")'
+const containerId = "b4ee9b032e1e0a930a178c4c107e6bceb2445b5db8fdcec6bcdd2630181b708e"
 
 const createAndRunContainer = (req: Request, res: Response) => {
   const roomId = uuidv4()
@@ -63,9 +64,7 @@ app.get('/', (req: Request, res: Response) => {
 })
 
 app.get('/start', (req: Request, res: Response) => {
-  var container = docker.getContainer(
-    '0b6a1a33715687454518c22fe7d6f3eea7186b7b5871488581ed5d335d4f417c'
-  )
+  var container = docker.getContainer(containerId)
   container.inspect(function (err, data) {
     console.log(data)
   })
@@ -78,9 +77,7 @@ app.get('/start', (req: Request, res: Response) => {
 
 async function execute(command: string[], req: Request, res: Response) {
   try {
-    const container = docker.getContainer(
-      '0b6a1a33715687454518c22fe7d6f3eea7186b7b5871488581ed5d335d4f417c'
-    )
+    const container = docker.getContainer(containerId)
 
     // Create exec instance
     const exec = await container.exec({
@@ -169,7 +166,7 @@ app.post('/run', async (req: Request, res: Response) => {
       `cd /home/app/user/my-react-app && npm run dev -- --port 3000`,
     ]
 
-    await execute(command, req, res) // ✅ fixed await
+    await execute(command, req, res)
   }
 
   // ✅ Only start once when first /run call happens

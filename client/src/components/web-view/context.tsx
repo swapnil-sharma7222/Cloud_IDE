@@ -13,7 +13,7 @@ export const WebViewContext = createContext<WebViewContextType | null>(null)
 export const WebViewProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [url, setUrl] = useState<string>('http://localhost:8080')
+  const [url, setUrl] = useState<string>('http://localhost:4000')
 
   return (
     <WebViewContext.Provider value={{ url, setUrl }}>

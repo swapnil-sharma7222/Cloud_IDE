@@ -2,7 +2,7 @@ import { Server, Socket } from 'socket.io'
 import { Server as HttpServer } from 'http'
 import { createTerminalManager } from './services/pseudoTerminal.ts'
 
-const terminalManager = createTerminalManager()
+// const terminalManager = createTerminalManager()
 
 export function initSocket(server: HttpServer): void {
   const io = new Server(server, {
@@ -16,10 +16,10 @@ export function initSocket(server: HttpServer): void {
     console.log(`User connected: ${socket.id}`)
 
     // Create a shell for this socket
-    terminalManager.createPty(socket, (data: string) => {
+    // terminalManager.createPty(socket, (data: string) => {
 
-      socket.emit('terminal:data', data)
-    })
+    //   socket.emit('terminal:data', data)
+    // })
 
     socket.on('terminal:write', (data: string): void => {
       const cleanData = data.replace(
@@ -27,7 +27,7 @@ export function initSocket(server: HttpServer): void {
         ''
       )
       console.log('data from client', cleanData)
-      terminalManager.write(socket.id, cleanData)
+      // terminalManager.write(socket.id, cleanData)
     })
 
     socket.on('join-playground', (playgroundId: string) => {
@@ -40,7 +40,7 @@ export function initSocket(server: HttpServer): void {
     })
 
     socket.on('disconnect', () => {
-      terminalManager.clear(socket.id)
+      // terminalManager.clear(socket.id)
       console.log(`User ${socket.id} disconnected`)
     })
   })
