@@ -172,7 +172,9 @@ const Dashboard: React.FC = () => {
                   height: "100%",
                 }}
               >
-                <TerminalComponent/>
+                <TerminalComponent
+                  containerId="b4ee9b032e1e0a930a178c4c107e6bceb2445b5db8fdcec6bcdd2630181b708e"
+                />
               </div>
             </div>
           </div>
