@@ -1,8 +1,12 @@
 # Use Node.js 22 LTS on Alpine
-FROM node:22-alpine
+# Use your local base image by its digest
+FROM localbase:latest
 
-# Set an empty working directory
-WORKDIR /usr/src/app
+# Set working directory
+WORKDIR /home/appuser
 
-# Just a placeholder command (can be changed later)
-CMD ["node"]
+# Expose port 4000
+EXPOSE 4000
+
+# Default command (you can change this)
+CMD ["bash"]
