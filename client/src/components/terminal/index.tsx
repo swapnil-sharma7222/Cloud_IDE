@@ -1,245 +1,140 @@
-// import React, { useEffect, useRef, useState } from "react";
-// import { Terminal } from "@xterm/xterm";
-// import { WebLinksAddon } from "@xterm/addon-web-links";
-// import { FitAddon } from "@xterm/addon-fit";
-// import { io, Socket } from "socket.io-client";
-// import "@xterm/xterm/css/xterm.css";
+import { useEffect, useRef } from 'react';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
+import { io, Socket } from 'socket.io-client';
 
-// const TerminalFrontend: React.FC = () => {
-//   const terminalRef = useRef<HTMLDivElement | null>(null);
-//   const term = useRef<Terminal | null>(null);
-//   const fitAddon = useRef<FitAddon | null>(null);
-//   const socket = useRef<Socket | null>(null);
-//   const [inputBuffer, setInputBuffer] = useState<string>("ls");
+interface TerminalProps {
+  containerId: string;
+}
 
-//   useEffect(() => {
-//     if (terminalRef.current) {
-//       // Initialize terminal
-//       term.current = new Terminal({
-//         cursorBlink: true,
-//         fontSize: 14,
-//         theme: {
-//           background: "#1e1e1e",
-//           foreground: "#ffffff",
-//         },
-//       });
-
-//       // Add FitAddon for responsive resizing
-//       fitAddon.current = new FitAddon();
-//       term.current.loadAddon(fitAddon.current);
-
-//       // Add WebLinksAddon for clickable links
-//       const webLinksAddon = new WebLinksAddon();
-//       term.current.loadAddon(webLinksAddon);
-
-//       // Open the terminal in the div
-//       term.current.open(terminalRef.current);
-
-//       // Fit the terminal to its container
-//       fitAddon.current.fit();
-
-//       // Initialize Socket.IO connection
-//       socket.current = io("ws://localhost:8080/");
-
-//       socket.current.on("connection", () => {
-//         console.log("Connected to Socket.IO server");
-//       });
-
-//       socket.current.on("disconnect", () => {
-//         console.log("Disconnected from Socket.IO server");
-//       });
-
-//       // Handle user input
-//       term.current.onData((data) => {
-//         console.log("this is input buffer",inputBuffer);
-//         // Display the user's input in the terminal
-//         term.current?.write(data);
-
-//         // If Enter key is pressed, send the input to the backend
-//         if (data === "\r") {
-//           socket.current?.emit("terminal:write", inputBuffer);
-//           setInputBuffer(''); // Clear the buffer
-//         } else if (data === "\u007F") {
-//           // Handle backspace
-//           term.current?.write("\b \b"); // Erase character from terminal
-//           if (inputBuffer.length > 0) {
-//             setInputBuffer((prev) => prev.slice(0, -1));
-//           }
-//         } else {
-//           // Append character to buffer
-//           console.log("this is data",data);
-//           setInputBuffer((prev:string):string => {
-//             return prev+ data;
-//           });
-//         }
-//       });
-
-//       // Handle data from backend
-//       socket.current.on("terminal:data", (data: string) => {
-//         term.current?.write(data);
-//       });
-
-//       // Clean up on component unmount
-//       return () => {
-//         term.current?.dispose();
-//         fitAddon.current?.dispose();
-//         socket.current?.disconnect();
-//       };
-//     }
-//   }, []);
-
-//   useEffect(() => {
-//     // Adjust terminal size on window resize
-//     const handleResize = () => {
-//       fitAddon.current?.fit();
-//     };
-//     window.addEventListener("resize", handleResize);
-
-//     return () => {
-//       window.removeEventListener("resize", handleResize);
-//     };
-//   }, []);
-
-//   return (
-//     <div
-//       ref={terminalRef}
-//       style={{
-//         width: "100%",
-//         height: "inherit",
-//         backgroundColor: "red",
-//         overflowX: "clip",
-//       }}
-//     ></div>
-//   );
-// };
-
-// export default TerminalFrontend;
-
-import React, { useEffect, useRef } from "react";
-import { Terminal } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import { WebLinksAddon } from "@xterm/addon-web-links";
-import { io, Socket } from "socket.io-client";
-import "@xterm/xterm/css/xterm.css";
-
-const TerminalFrontend: React.FC = () => {
-  const terminalRef = useRef<HTMLDivElement | null>(null);
-  const term = useRef<Terminal | null>(null);
-  const fitAddon = useRef<FitAddon | null>(null);
-  const socket = useRef<Socket | null>(null);
-  const inputBuffer = useRef<string>(""); // Using useRef for the input buffer
+export default function TerminalComponent({ containerId }: TerminalProps) {
+  const terminalRef = useRef<HTMLDivElement>(null);
+  const xtermRef = useRef<Terminal | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
+  const commandBufferRef = useRef<string>('');
 
   useEffect(() => {
-    if (terminalRef.current) {
-      // Initialize terminal
-      term.current = new Terminal({
-        cursorBlink: true,
-        fontSize: 14,
-        theme: {
-          background: "#000",
-          foreground: "#ffffff",
-        },
-      });
+    if (!terminalRef.current) return;
 
-      // Initialize and load addons
-      fitAddon.current = new FitAddon();
-      const webLinksAddon = new WebLinksAddon();
-      term.current.loadAddon(fitAddon.current);
-      term.current.loadAddon(webLinksAddon);
+    const xterm = new Terminal({
+      cursorBlink: true,
+      fontSize: 14,
+      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      theme: {
+        background: '#1e1e1e',
+        foreground: '#d4d4d4',
+        cursor: '#ffffff',
+      },
+      rows: 24, // ✅ Set initial rows
+      cols: 80, // ✅ Set initial columns
+    });
 
-      // Open the terminal in the div
-      term.current.open(terminalRef.current);
+    const fitAddon = new FitAddon();
+    xterm.loadAddon(fitAddon);
+    xterm.open(terminalRef.current);
+    
+    // ✅ Delay fit to ensure container is rendered
+    setTimeout(() => {
+      fitAddon.fit();
+    }, 0);
 
-      // Fit the terminal to its container
-      fitAddon.current.fit();
+    xtermRef.current = xterm;
+    fitAddonRef.current = fitAddon;
 
-      // Initialize Socket.IO connection
-      socket.current = io("ws://localhost:4200/");
+    const socket = io('http://localhost:4200');
+    socketRef.current = socket;
 
-      socket.current.on("connect", () => {
-        console.log("Connected to Socket.IO server");
-      });
+    socket.on('connect', () => {
+      console.log('✅ Connected to terminal server');
+      socket.emit('terminal:init', containerId);
+    });
 
-      socket.current.on("disconnect", () => {
-        console.log("Disconnected from Socket.IO server");
-      });
+    socket.on('terminal:data', (data: string) => {
+      xterm.write(data);
+    });
 
-      // Handle incoming data from backend
-      socket.current.on("terminal:data", (data: string) => {
-        console.log("this is data",data);
-        term.current?.write(data);
-      });
-      // socket.current.on('terminal:data', (data: string): void => {
-      //   console.log(`Received command: ${data}`);
-      //   term.current?.write(`${data}\n`);
-      // });
+    // Handle user input
+    xterm.onData((data: string) => {
+      const code = data.charCodeAt(0);
 
-      // Handle user input
-     term.current.onData((data) => {
-       // Filter out all non-printable ASCII and escape sequences
-       const printableData = data.replace(
-         /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g,
-         ''
-       )
+      // Enter key
+      if (code === 13) {
+        const command = commandBufferRef.current;
+        commandBufferRef.current = '';
+        
+        if (command.trim()) {
+          socket.emit('terminal:exec', command);
+        } else {
+          xterm.write('\r\n$ ');
+        }
+        return;
+      }
 
-       const code = printableData.charCodeAt(0)
+      // Backspace
+      if (code === 127 || code === 8) {
+        if (commandBufferRef.current.length > 0) {
+          commandBufferRef.current = commandBufferRef.current.slice(0, -1);
+          xterm.write('\b \b');
+        }
+        return;
+      }
 
-       if (code === 13) {
-         // Enter key
-         term.current?.write('\r\n')
-         console.log('inputBuffer.current', inputBuffer.current)
-         socket.current?.emit(
-           'terminal:write',
-           inputBuffer.current.trim() + '\n'
-         )
-         inputBuffer.current = '' // Clear the buffer
-       } else if (code === 127) {
-         // Backspace
-         if (inputBuffer.current.length > 0) {
-           inputBuffer.current = inputBuffer.current.slice(0, -1)
-           term.current?.write('\b \b')
-         }
-       } else if (
-         printableData &&
-         printableData >= ' ' &&
-         printableData <= '~'
-       ) {
-         // Regular printable characters only
-         inputBuffer.current += printableData
-         term.current?.write(printableData)
-       }
-     })
-      return () => {
-        term.current?.dispose();
-        fitAddon.current?.dispose();
-        socket.current?.disconnect();
-      };
-    }
-  }, []);
+      // Ctrl+C
+      if (code === 3) {
+        commandBufferRef.current = '';
+        xterm.write('^C\r\n$ ');
+        return;
+      }
 
-  useEffect(() => {
-    // Adjust terminal size on window resize
+      // Regular character
+      if (code >= 32 && code < 127) {
+        commandBufferRef.current += data;
+        xterm.write(data);
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('❌ Disconnected from terminal server');
+    });
+
+    // ✅ Handle window resize
     const handleResize = () => {
-      fitAddon.current?.fit();
+      if (fitAddonRef.current) {
+        fitAddonRef.current.fit();
+      }
     };
-    window.addEventListener("resize", handleResize);
+
+    window.addEventListener('resize', handleResize);
+
+    // ✅ Also fit when container size changes
+    const resizeObserver = new ResizeObserver(() => {
+      if (fitAddonRef.current) {
+        fitAddonRef.current.fit();
+      }
+    });
+
+    if (terminalRef.current) {
+      resizeObserver.observe(terminalRef.current);
+    }
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
+      socket.disconnect();
+      xterm.dispose();
     };
-  }, []);
+  }, [containerId]);
 
   return (
     <div
       ref={terminalRef}
       style={{
-        width: "100%",
-        height: "100%",
-        backgroundColor: "red",
-        overflowY: "hidden",
+        width: '100%',
+        height: '100%', // ✅ Changed to 100%
+        backgroundColor: '#1e1e1e',
       }}
-    ></div>
+    />
   );
-};
-
-export default TerminalFrontend;
+}
