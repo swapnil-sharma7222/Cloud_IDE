@@ -12,6 +12,8 @@ import { fileURLToPath } from 'url'
 import os from 'os'
 import { containerPath } from './utils/containerPath.ts'
 import { getFolderStructure } from './utils/generateFolderStructure.ts'
+import { randomUUID } from 'crypto'
+import axios from 'axios'
 // import io from './socket'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -23,6 +25,19 @@ app.use(cors())
 dotenv.config({ path: './.env' })
 // connectdb();
 initSocket(server)
+
+const userServerMapping = new Map<string, string>()
+app.post('/v1/api/init-project', async(req, res) => {
+try {
+    const userId = randomUUID();
+    const response = await axios.post('http://localhost:3000/v1/api/init-container', { userId })
+    userServerMapping.set(userId, response.data.containerId)
+    res.json({ userId, containerId: response.data.containerId, freePort: response.data.freePort })
+} catch (err) {
+  console.error('Failed to initialize project:', err)
+  res.json({ error: 'Failed to initialize project', message: err })
+}
+})
 
 // const containerPath = path.join(os.homedir(), '/Desktop/newFolder/folder')
 
