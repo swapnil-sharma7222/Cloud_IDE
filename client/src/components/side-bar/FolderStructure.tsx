@@ -1,6 +1,9 @@
 import { FC, useEffect, useState } from 'react';
 import { Box } from '@mui/material';
 import SidebarItem from './SidebarItem.tsx';
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:4200");
 
 interface FileNode {
   name: string;
@@ -12,10 +15,21 @@ const FolderStructure: FC = () => {
   const [structure, setStructure] = useState<FileNode[]>([]);
 
   useEffect(() => {
+
     fetch("http://localhost:4200/v1/api/folder-structure")
       .then((res) => res.json())
       .then((data) => setStructure(data))
       .catch((err) => console.error(err));
+
+    const handleUpdate = (data: any) => {
+      console.log("Updated folder structure received:", data);
+      setStructure(data);
+    };
+
+    socket.on("folderStructureUpdate", handleUpdate);
+    return () => {
+      socket.off("folderStructureUpdate", handleUpdate);
+    };
   }, []);
 
   return (

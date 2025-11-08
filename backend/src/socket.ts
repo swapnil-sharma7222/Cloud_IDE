@@ -1,6 +1,9 @@
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from 'http';
 import Docker from 'dockerode';
+import { chokidarWatcher } from "./utils/chokidar";
+import { getFolderStructure } from "./utils/generateFolderStructure";
+import { containerPath } from "./utils/containerPath";
 
 const docker = new Docker();
 
@@ -17,11 +20,12 @@ export function initSocket(server: HttpServer): void {
       origin: "*",
     },
   });
-
+  chokidarWatcher(io);
   console.log('Socket.IO server initialized');
 
   io.on("connection", (socket: Socket) => {
     console.log(`✅ User connected: ${socket.id}`);
+    socket.emit("folderStructureUpdate", getFolderStructure(containerPath));
 
     // Initialize terminal session
     socket.on('terminal:init', async (containerId: string) => {
@@ -44,11 +48,9 @@ export function initSocket(server: HttpServer): void {
       }
 
       try {
-        // ✅ Handle cd command separately to update working directory
         if (command.trim().startsWith('cd ')) {
           const newDir = command.trim().substring(3).trim() || '~';
           
-          // ✅ Handle special cases
           let targetPath: string;
           if (newDir === '~' || newDir === '') {
             targetPath = '/home/appuser/folder';
@@ -65,7 +67,6 @@ export function initSocket(server: HttpServer): void {
             targetPath = `${session.workingDir}/${newDir}`;
           }
 
-          // ✅ Test if directory exists and is accessible
           const testResult = await executeInContainer(
             session.containerId,
             `test -d "${targetPath}" && echo "OK" || echo "ERROR"`,
@@ -73,12 +74,10 @@ export function initSocket(server: HttpServer): void {
           );
 
           if (testResult.output.trim() === 'OK') {
-            // ✅ Directory exists, update session
             session.workingDir = targetPath;
             const prompt = getPrompt(session.workingDir);
             socket.emit('terminal:data', `\r\n${prompt}`);
           } else {
-            // ✅ Directory doesn't exist
             const prompt = getPrompt(session.workingDir);
             socket.emit('terminal:data', `\r\ncd: ${newDir}: No such file or directory\r\n${prompt}`);
           }
@@ -123,7 +122,6 @@ export function initSocket(server: HttpServer): void {
   });
 }
 
-// ✅ Execute command in Docker container
 async function executeInContainer(
   containerId: string,
   command: string,
@@ -131,12 +129,11 @@ async function executeInContainer(
 ): Promise<{ success: boolean; output: string }> {
   const container = docker.getContainer(containerId);
   
-  // ✅ Use proper shell command with explicit working directory
   const exec = await container.exec({
-    Cmd: ['sh', '-c', `cd "${workingDir}" && ${command} 2>&1`], // ✅ Added quotes and stderr redirect
+    Cmd: ['sh', '-c', `cd "${workingDir}" && ${command} 2>&1`],
     AttachStdout: true,
     AttachStderr: true,
-    Tty: false, // ✅ Changed back to false for better error handling
+    Tty: true, 
   });
 
   const stream = await exec.start({ hijack: true, stdin: false });
@@ -145,7 +142,6 @@ async function executeInContainer(
     let output = '';
 
     stream.on('data', (chunk: Buffer) => {
-      // ✅ Parse Docker stream properly
       let offset = 0;
       while (offset < chunk.length) {
         if (chunk.length - offset < 8) break;
@@ -209,7 +205,4 @@ function getPrompt(workingDir: string): string {
   
   // Option 3: Just folder name with arrow (like folder >)
   // return `\x1b[36m${folderName}\x1b[0m > `;
-  
-  // Option 4: Minimal with emoji
-  // return `📁 \x1b[36m${folderName}\x1b[0m → `;
 }
