@@ -29,10 +29,12 @@ initSocket(server)
 const userServerMapping = new Map<string, string>()
 app.post('/v1/api/init-project', async(req, res) => {
 try {
-    const userId = randomUUID();
-    const response = await axios.post('http://localhost:3000/v1/api/init-container', { userId })
-    userServerMapping.set(userId, response.data.containerId)
-    res.json({ userId, containerId: response.data.containerId, freePort: response.data.freePort })
+  const userId = randomUUID();
+  const projectName = req.body.name;
+  console.log('Received init-project request for userId:', userId, 'projectName:', projectName)
+  const response = await axios.post('http://localhost:3000/v1/api/init-container', { userId, projectName })
+  userServerMapping.set(userId, response.data.containerId)
+  res.json({ userId, containerId: response.data.containerId, freePort: response.data.freePort })
 } catch (err) {
   console.error('Failed to initialize project:', err)
   res.json({ error: 'Failed to initialize project', message: err })

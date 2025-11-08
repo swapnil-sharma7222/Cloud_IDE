@@ -1,8 +1,8 @@
 import express, { Request, Response } from 'express'
 import Docker from 'dockerode'
-import { v4 as uuidv4 } from 'uuid'
 import cors from 'cors'
 import { findFreePort } from './utils/checkFreePort.js'
+import { startContainerFromLocalImage } from './utils/startContainerFromLocalImage.js'
 
 const app = express()
 
@@ -20,104 +20,11 @@ const roomContainerMap: Record<string, RoomInfo> = {}
 const string = 'console.log("hello world swapnil")'
 const containerId = "b4ee9b032e1e0a930a178c4c107e6bceb2445b5db8fdcec6bcdd2630181b708e"
 
-async function startContainerFromLocalImage(imageName: string, containerName: string, portMappings: string[] = []) : Promise<string | undefined> {
-  try {
-    // Check if the image exists locally
-    const images = await docker.listImages({ filters: { reference: [imageName] } });
-    if (images.length === 0) {
-      console.error(`Image "${imageName}" not found locally. Please ensure it's pulled or built.`);
-      return;
-    }
-
-    const exposedPorts: Record<string, {}> = {};
-    const portBindings: Record<string, Array<{ HostPort: string }>> = {};
-
-    portMappings.forEach(mapping => {
-      const [hostPort, containerPort] = mapping.split(':');
-      const portKey = `${containerPort}/tcp`;
-
-      exposedPorts[portKey] = {};
-      portBindings[portKey] = [{ HostPort: hostPort }];
-    });
-
-    console.log('📦 Creating container with port mappings:', {
-      exposedPorts,
-      portBindings
-    });
-
-
-    // Create and start the container
-    const container = await docker.createContainer({
-      Image: imageName,
-      name: containerName,
-      Tty: true, // ✅ Add Tty for interactive shell
-      Cmd: ['/bin/sh'], // ✅ Keep container running
-      ExposedPorts: exposedPorts,
-      HostConfig: {
-        PortBindings: portBindings,
-        AutoRemove: false,
-      },
-    });
-
-    await container.start();
-    console.log(`Container "${containerName}" started successfully from image "${imageName}".`);
-    console.log(`Container ID: ${container.id}`);
-
-    // You can also inspect the container for more details
-    const containerInfo = await container.inspect();
-    console.log('🔌 Port Mappings:', containerInfo.NetworkSettings.Ports);
-    console.log('Container IP Address:', containerInfo.NetworkSettings.IPAddress);
-    return container.id;
-
-  } catch (err) {
-    console.error('Error starting container:', err);
-    throw err;
-  }
-}
-
-const createAndRunContainer = (req: Request, res: Response) => {
-  const roomId = uuidv4()
-  const containerName = `cloud_ide_container_${roomId}`
-  const imageName = 'pushpak01/cloud_ide-node-alpine'
-
-  docker.pull(imageName, (err: Error | null, stream: NodeJS.ReadableStream) => {
-    if (err) {
-      console.error('Pull error:', err)
-      return res.status(500).send('Failed to pull image')
-    }
-
-    docker.modem.followProgress(stream, async () => {
-      try {
-        const container = await docker.createContainer({
-          Image: imageName,
-          name: containerName,
-          Tty: true,
-          Cmd: ['/bin/sh'],
-          HostConfig: {
-            AutoRemove: true,
-          },
-        })
-
-        await container.start()
-
-        roomContainerMap[roomId] = {
-          containerName,
-          containerId: container.id,
-        }
-
-        console.log(`✅ Container started for room ${roomId}: ${containerName}`)
-        res.send({ roomId, containerName })
-      } catch (createErr) {
-        console.error('Container creation error:', createErr)
-        res.status(500).send('Failed to create/start container')
-      }
-    })
-  })
-}
 
 app.post('/v1/api/init-container', async (req: Request, res: Response) => {
   try {
-    const { userId } = req.body;
+    const { userId, projectName } = req.body;
+    console.log('Init container request received for userId:', userId, 'projectName:', projectName);
 
     if (!userId) {
       res.status(400).json({ error: 'userId is required' });
@@ -136,7 +43,8 @@ app.post('/v1/api/init-container', async (req: Request, res: Response) => {
     const containerId = await startContainerFromLocalImage(
       'sharky_node',
       `sharky_node-${userId}`,
-      [`${freePort}:4000`] // Maps host:freePort -> container:4000
+      [`${freePort}:4000`], // Maps host:freePort -> container:4000
+      projectName
     );
 
     if (!containerId) {
