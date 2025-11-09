@@ -33,6 +33,8 @@ interface RoomInfo {
 export const roomContainerMap: Record<string, RoomInfo> = {}
 export const userProjectMap: Record<string, string> = {}
 export const userContainerMap: Record<string, string> = {}
+userProjectMap["69676096-bb01-46a1-811d-f277373682e0"] = "pro1"
+// http://localhost:5173/69676096-bb01-46a1-811d-f277373682e0/dashboard
 
 app.post('/v1/api/init-project', async(req, res) => {
 try {
@@ -58,7 +60,9 @@ try {
 
 app.get('/v1/api/file-data', (req, res) => {
   let filePath = req.query.path as string
-  filePath = containerPath + filePath
+  const userId = req.query.userId as string;
+  const userProject = userProjectMap[userId];
+  filePath = path.join(containerPath(userProject), filePath);
   console.log(filePath)
 
   if (!filePath) {
@@ -90,6 +94,8 @@ app.get('/v1/api/folder-structure', (req, res) => {
 
 app.post('/v1/api/save-file', express.json(), async (req, res) => {
   const { filepath, content } = req.body
+  const userId = req.query.userId as string;
+  const userProject = userProjectMap[userId];
 
   if (!filepath || content === undefined) {
     res.status(400).json({ error: 'filepath and content are required' })
@@ -97,7 +103,7 @@ app.post('/v1/api/save-file', express.json(), async (req, res) => {
   }
 
   try {
-    const fullPath = path.join(containerPath("userProject"), filepath)
+    const fullPath = path.join(containerPath(userProject), filepath)
 
     // Ensure directory exists
     const dir = path.dirname(fullPath)

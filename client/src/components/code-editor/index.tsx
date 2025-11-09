@@ -10,6 +10,7 @@ import {
   markFileSaved,
   updateFileCode,
 } from '../../features/FileTabs/fileTabSlice'
+import { useParams } from 'react-router-dom'
 
 type Props = {
   theme?: string
@@ -18,6 +19,7 @@ type Props = {
 export function CodeEditor({ theme }: Props) {
   const monaco = useMonaco()
   const dispatch = useDispatch()
+  const userId= useParams().userId;
 
   const activeTabPath = useSelector(
     (state: RootState) => state.fileTab.activeTabFullPath
@@ -77,7 +79,7 @@ export function CodeEditor({ theme }: Props) {
     if (!activeTabPath || !cachedContent) return
 
     try {
-      const response = await fetch('http://localhost:4200/v1/api/save-file', {
+      const response = await fetch(`http://localhost:4200/v1/api/save-file?userId=${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

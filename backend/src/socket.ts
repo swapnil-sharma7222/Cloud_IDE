@@ -58,11 +58,11 @@ export function initSocket(server: HttpServer): void {
     socket.on('terminal:init', async (containerId: string) => {
       sessions.set(socket.id, {
         containerId,
-        workingDir: '/home/appuser/folder',
+        workingDir: `/home/appuser/folder/${userProject}`,
         userId,
       });
 
-      const prompt = getPrompt('/home/appuser/folder');
+      const prompt = getPrompt(`${userProject}`);
       socket.emit('terminal:data', `\x1b[32m●\x1b[0m Terminal ready\r\n${prompt}`);
     });
 
@@ -100,10 +100,10 @@ export function initSocket(server: HttpServer): void {
 
           if (testResult.output.trim() === 'OK') {
             session.workingDir = targetPath;
-            const prompt = getPrompt(session.workingDir);
+            const prompt = getPrompt(userProject);
             socket.emit('terminal:data', `\r\n${prompt}`);
           } else {
-            const prompt = getPrompt(session.workingDir);
+            const prompt = getPrompt(userProject);
             socket.emit('terminal:data', `\r\ncd: ${newDir}: No such file or directory\r\n${prompt}`);
           }
           return;
@@ -116,7 +116,7 @@ export function initSocket(server: HttpServer): void {
         );
 
         const formattedOutput = result.output.replace(/\n/g, '\r\n');
-        const prompt = getPrompt(session.workingDir);
+        const prompt = getPrompt(userProject);
 
         if (formattedOutput) {
           socket.emit('terminal:data', `\r\n${formattedOutput}\r\n${prompt}`);
@@ -125,7 +125,7 @@ export function initSocket(server: HttpServer): void {
         }
 
       } catch (err) {
-        const prompt = getPrompt(session.workingDir);
+        const prompt = getPrompt(userProject);
         socket.emit('terminal:data', `\r\n\x1b[31mError: ${err}\x1b[0m\r\n${prompt}`);
       }
     });

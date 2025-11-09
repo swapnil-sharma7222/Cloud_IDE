@@ -62,7 +62,7 @@ export function chokidarWatcher(io: Server, socket: Socket): void {
     .on("addDir", (path) => emitStructureUpdate("Directory added", path))
     .on("unlink", (path) => emitStructureUpdate("File removed", path))
     .on("unlinkDir", (path) => emitStructureUpdate("Directory removed", path))
-    .on("change", (path) => emitStructureUpdate("File changed", path))
+    // .on("change", (path) => emitStructureUpdate("File changed", path))
     .on("ready", () => console.log(`✅ Watcher ready for user: ${userId}`))
     .on("error", (error) => console.error(`❌ Watcher error for ${userId}:`, error));
 
