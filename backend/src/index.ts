@@ -12,6 +12,8 @@ import { fileURLToPath } from 'url'
 import os from 'os'
 import { containerPath } from './utils/containerPath.ts'
 import { getFolderStructure } from './utils/generateFolderStructure.ts'
+import { randomUUID } from 'crypto'
+import axios from 'axios'
 // import io from './socket'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -23,12 +25,44 @@ app.use(cors())
 dotenv.config({ path: './.env' })
 // connectdb();
 initSocket(server)
+interface RoomInfo {
+  containerName: string
+  containerId: string
+}
 
-// const containerPath = path.join(os.homedir(), '/Desktop/newFolder/folder')
+export const roomContainerMap: Record<string, RoomInfo> = {}
+export const userProjectMap: Record<string, string> = {}
+export const userContainerMap: Record<string, string> = {}
+userProjectMap["69676096-bb01-46a1-811d-f277373682e0"] = "pro1"
+// http://localhost:5173/69676096-bb01-46a1-811d-f277373682e0/dashboard
+
+app.post('/v1/api/init-project', async(req, res) => {
+try {
+  const userId = randomUUID();
+  const projectName = req.body.name;
+  console.log('Received init-project request for userId:', userId, 'projectName:', projectName)
+
+  const response = await axios.post('http://localhost:3000/v1/api/init-container', { userId, projectName })
+  if (response) {
+    userProjectMap[userId] = projectName;
+    userContainerMap[userId] = response.data.containerId;
+    roomContainerMap[userId] = {
+      containerName: `sharky_node-${userId}`,
+      containerId: response.data.containerId,
+    };
+  }
+  res.json({ userId, containerId: response.data.containerId, freePort: response.data.freePort })
+} catch (err) {
+  console.error('Failed to initialize project:', err)
+  res.json({ error: 'Failed to initialize project', message: err })
+}
+})
 
 app.get('/v1/api/file-data', (req, res) => {
   let filePath = req.query.path as string
-  filePath = containerPath + filePath
+  const userId = req.query.userId as string;
+  const userProject = userProjectMap[userId];
+  filePath = path.join(containerPath(userProject), filePath);
   console.log(filePath)
 
   if (!filePath) {
@@ -45,10 +79,12 @@ app.get('/v1/api/file-data', (req, res) => {
 })
 
 app.get('/v1/api/folder-structure', (req, res) => {
-  console.log(containerPath);
-  
+  const userId = req.query.userId as string;
+  console.log(`User ID for folder structure request: ${userId}`);
+  const userProject = userProjectMap[userId];
+  console.log("this is folder structure ",containerPath(userProject));
   try {
-    const structure = getFolderStructure(containerPath)
+    const structure = getFolderStructure(containerPath(userProject));
     res.json(structure)
   } catch (err) {
     console.error(err)
@@ -58,6 +94,8 @@ app.get('/v1/api/folder-structure', (req, res) => {
 
 app.post('/v1/api/save-file', express.json(), async (req, res) => {
   const { filepath, content } = req.body
+  const userId = req.query.userId as string;
+  const userProject = userProjectMap[userId];
 
   if (!filepath || content === undefined) {
     res.status(400).json({ error: 'filepath and content are required' })
@@ -65,7 +103,7 @@ app.post('/v1/api/save-file', express.json(), async (req, res) => {
   }
 
   try {
-    const fullPath = path.join(containerPath, filepath)
+    const fullPath = path.join(containerPath(userProject), filepath)
 
     // Ensure directory exists
     const dir = path.dirname(fullPath)

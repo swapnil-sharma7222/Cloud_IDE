@@ -1,7 +1,8 @@
 import express, { Request, Response } from 'express'
 import Docker from 'dockerode'
-import { v4 as uuidv4 } from 'uuid'
 import cors from 'cors'
+import { findFreePort } from './utils/checkFreePort.js'
+import { startContainerFromLocalImage } from './utils/startContainerFromLocalImage.js'
 
 const app = express()
 
@@ -15,49 +16,59 @@ interface RoomInfo {
   containerId: string
 }
 
-const roomContainerMap: Record<string, RoomInfo> = {}
+export const roomContainerMap: Record<string, RoomInfo> = {}
+export const userProjectMap: Record<string, string> = {}
+export const userContainerMap: Record<string, string> = {}
 const string = 'console.log("hello world swapnil")'
 const containerId = "b4ee9b032e1e0a930a178c4c107e6bceb2445b5db8fdcec6bcdd2630181b708e"
 
-const createAndRunContainer = (req: Request, res: Response) => {
-  const roomId = uuidv4()
-  const containerName = `cloud_ide_container_${roomId}`
-  const imageName = 'pushpak01/cloud_ide-node-alpine'
 
-  docker.pull(imageName, (err: Error | null, stream: NodeJS.ReadableStream) => {
-    if (err) {
-      console.error('Pull error:', err)
-      return res.status(500).send('Failed to pull image')
+app.post('/v1/api/init-container', async (req: Request, res: Response) => {
+  try {
+    const { userId, projectName } = req.body;
+    console.log('Init container request received for userId:', userId, 'projectName:', projectName);
+
+    if (!userId) {
+      res.status(400).json({ error: 'userId is required' });
+      return;
     }
 
-    docker.modem.followProgress(stream, async () => {
-      try {
-        const container = await docker.createContainer({
-          Image: imageName,
-          name: containerName,
-          Tty: true,
-          Cmd: ['/bin/sh'],
-          HostConfig: {
-            AutoRemove: true,
-          },
-        })
+    const freePort = await findFreePort(4000, 4100, 50);
 
-        await container.start()
+    if (!freePort) {
+      res.status(503).json({ error: 'No available ports' });
+      return;
+    }
 
-        roomContainerMap[roomId] = {
-          containerName,
-          containerId: container.id,
-        }
+    console.log(`🔍 Starting container for user ${userId} on port ${freePort}`);
 
-        console.log(`✅ Container started for room ${roomId}: ${containerName}`)
-        res.send({ roomId, containerName })
-      } catch (createErr) {
-        console.error('Container creation error:', createErr)
-        res.status(500).send('Failed to create/start container')
-      }
-    })
-  })
-}
+    const containerId = await startContainerFromLocalImage(
+      'sharky_node',
+      `sharky_node-${userId}`,
+      [`${freePort}:4000`], // Maps host:freePort -> container:4000
+      projectName
+    );
+
+    if (!containerId) {
+      res.status(500).json({ error: 'Failed to start container' });
+      return;
+    }
+
+    res.json({
+      message: 'Project initialization started',
+      userId,
+      containerId,
+      freePort,
+      previewUrl: `http://localhost:${freePort}`
+    });
+  } catch (err) {
+    console.error('Init container error:', err);
+    res.status(500).json({
+      error: 'Failed to initialize container',
+      details: err instanceof Error ? err.message : String(err)
+    });
+  }
+});
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Welcome to the Cloud IDE API')

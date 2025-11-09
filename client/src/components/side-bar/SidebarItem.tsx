@@ -6,6 +6,7 @@ import { FiFolder, FiFile, FiArrowRight, FiArrowDown } from "react-icons/fi";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../app/store";
 import { addFileTab } from "../../features/FileTabs/fileTabSlice";
+import { useParams } from "react-router-dom";
 
 interface SidebarItemProps {
   item: {
@@ -19,6 +20,7 @@ interface SidebarItemProps {
 const SideBarItem: React.FC<SidebarItemProps> = ({ item, parentPath = "" }) => {
   const [isOpenFolder, setIsOpenFolder] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
+  const userId= useParams().userId;
   
   const fileCache = useSelector((state: RootState) => state.fileTab.fileCache);
   
@@ -43,7 +45,7 @@ const SideBarItem: React.FC<SidebarItemProps> = ({ item, parentPath = "" }) => {
         // File not cached, fetch from backend
         try {
           const response = await fetch(
-            `http://localhost:4200/v1/api/file-data?path=${encodeURIComponent(currentPath)}`
+            `http://localhost:4200/v1/api/file-data?userId=${userId}&path=${encodeURIComponent(currentPath)}`
           );
           const data = await response.json();
 
