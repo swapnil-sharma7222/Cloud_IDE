@@ -4,12 +4,14 @@ import Docker from 'dockerode';
 import { chokidarWatcher } from "./utils/chokidar";
 import { getFolderStructure } from "./utils/generateFolderStructure";
 import { containerPath } from "./utils/containerPath";
+import { userProjectMap } from ".";
 
 const docker = new Docker();
 
 interface TerminalSession {
   containerId: string;
   workingDir: string;
+  userId: string;
 }
 
 const sessions = new Map<string, TerminalSession>();
@@ -20,20 +22,46 @@ export function initSocket(server: HttpServer): void {
       origin: "*",
     },
   });
-  chokidarWatcher(io);
   console.log('Socket.IO server initialized');
 
   io.on("connection", (socket: Socket) => {
-    console.log(`✅ User connected: ${socket.id}`);
-    socket.emit("folderStructureUpdate", getFolderStructure(containerPath));
+    // ✅ Extract userId from socket handshake
+    const userId = socket.handshake.query.userId as string;
+
+    if (!userId) {
+      console.error('❌ No userId provided');
+      socket.emit('error', 'userId is required');
+      socket.disconnect();
+      return;
+    }
+
+    console.log(`✅ User connected: ${socket.id}, userId: ${userId}`);
+
+    const userProject = userProjectMap[userId];
+
+    if (userProject) {
+      try {
+        const structure = getFolderStructure(containerPath(userProject));
+        socket.emit("folderStructureUpdate", structure);
+        console.log(`📁 Sent initial folder structure to user: ${userId}`);
+      } catch (error) {
+        console.error(`❌ Failed to send initial structure to ${userId}:`, error);
+      }
+
+      // ✅ Start watching for changes
+      chokidarWatcher(io, socket);
+    } else {
+      console.warn(`⚠️ No project found for user: ${userId}`);
+    }
 
     // Initialize terminal session
     socket.on('terminal:init', async (containerId: string) => {
       sessions.set(socket.id, {
         containerId,
         workingDir: '/home/appuser/folder',
+        userId,
       });
-      
+
       const prompt = getPrompt('/home/appuser/folder');
       socket.emit('terminal:data', `\x1b[32m●\x1b[0m Terminal ready\r\n${prompt}`);
     });
@@ -41,7 +69,7 @@ export function initSocket(server: HttpServer): void {
     // Execute command in Docker container
     socket.on('terminal:exec', async (command: string) => {
       const session = sessions.get(socket.id);
-      
+
       if (!session) {
         socket.emit('terminal:data', '\r\n\x1b[31mError: Terminal not initialized\x1b[0m\r\n$ ');
         return;
@@ -50,20 +78,17 @@ export function initSocket(server: HttpServer): void {
       try {
         if (command.trim().startsWith('cd ')) {
           const newDir = command.trim().substring(3).trim() || '~';
-          
+
           let targetPath: string;
           if (newDir === '~' || newDir === '') {
             targetPath = '/home/appuser/folder';
           } else if (newDir === '..') {
-            // Go up one directory
             const parts = session.workingDir.split('/').filter(Boolean);
             parts.pop();
             targetPath = '/' + parts.join('/');
           } else if (newDir.startsWith('/')) {
-            // Absolute path
             targetPath = newDir;
           } else {
-            // Relative path
             targetPath = `${session.workingDir}/${newDir}`;
           }
 
@@ -84,7 +109,6 @@ export function initSocket(server: HttpServer): void {
           return;
         }
 
-        // ✅ Execute regular command in current working directory
         const result = await executeInContainer(
           session.containerId,
           command,
@@ -93,13 +117,13 @@ export function initSocket(server: HttpServer): void {
 
         const formattedOutput = result.output.replace(/\n/g, '\r\n');
         const prompt = getPrompt(session.workingDir);
-        
+
         if (formattedOutput) {
           socket.emit('terminal:data', `\r\n${formattedOutput}\r\n${prompt}`);
         } else {
           socket.emit('terminal:data', `\r\n${prompt}`);
         }
-        
+
       } catch (err) {
         const prompt = getPrompt(session.workingDir);
         socket.emit('terminal:data', `\r\n\x1b[31mError: ${err}\x1b[0m\r\n${prompt}`);
@@ -116,7 +140,7 @@ export function initSocket(server: HttpServer): void {
     });
 
     socket.on("disconnect", () => {
-      console.log(`❌ User ${socket.id} disconnected`);
+      console.log(`❌ User ${socket.id} (userId: ${userId}) disconnected`);
       sessions.delete(socket.id);
     });
   });

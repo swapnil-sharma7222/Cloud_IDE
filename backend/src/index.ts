@@ -25,23 +25,36 @@ app.use(cors())
 dotenv.config({ path: './.env' })
 // connectdb();
 initSocket(server)
+interface RoomInfo {
+  containerName: string
+  containerId: string
+}
 
-const userServerMapping = new Map<string, string>()
+export const roomContainerMap: Record<string, RoomInfo> = {}
+export const userProjectMap: Record<string, string> = {}
+export const userContainerMap: Record<string, string> = {}
+
 app.post('/v1/api/init-project', async(req, res) => {
 try {
   const userId = randomUUID();
   const projectName = req.body.name;
   console.log('Received init-project request for userId:', userId, 'projectName:', projectName)
+
   const response = await axios.post('http://localhost:3000/v1/api/init-container', { userId, projectName })
-  userServerMapping.set(userId, response.data.containerId)
+  if (response) {
+    userProjectMap[userId] = projectName;
+    userContainerMap[userId] = response.data.containerId;
+    roomContainerMap[userId] = {
+      containerName: `sharky_node-${userId}`,
+      containerId: response.data.containerId,
+    };
+  }
   res.json({ userId, containerId: response.data.containerId, freePort: response.data.freePort })
 } catch (err) {
   console.error('Failed to initialize project:', err)
   res.json({ error: 'Failed to initialize project', message: err })
 }
 })
-
-// const containerPath = path.join(os.homedir(), '/Desktop/newFolder/folder')
 
 app.get('/v1/api/file-data', (req, res) => {
   let filePath = req.query.path as string
@@ -62,10 +75,12 @@ app.get('/v1/api/file-data', (req, res) => {
 })
 
 app.get('/v1/api/folder-structure', (req, res) => {
-  console.log(containerPath);
-  
+  const userId = req.query.userId as string;
+  console.log(`User ID for folder structure request: ${userId}`);
+  const userProject = userProjectMap[userId];
+  console.log("this is folder structure ",containerPath(userProject));
   try {
-    const structure = getFolderStructure(containerPath)
+    const structure = getFolderStructure(containerPath(userProject));
     res.json(structure)
   } catch (err) {
     console.error(err)
@@ -82,7 +97,7 @@ app.post('/v1/api/save-file', express.json(), async (req, res) => {
   }
 
   try {
-    const fullPath = path.join(containerPath, filepath)
+    const fullPath = path.join(containerPath("userProject"), filepath)
 
     // Ensure directory exists
     const dir = path.dirname(fullPath)

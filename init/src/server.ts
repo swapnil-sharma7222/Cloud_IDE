@@ -16,7 +16,9 @@ interface RoomInfo {
   containerId: string
 }
 
-const roomContainerMap: Record<string, RoomInfo> = {}
+export const roomContainerMap: Record<string, RoomInfo> = {}
+export const userProjectMap: Record<string, string> = {}
+export const userContainerMap: Record<string, string> = {}
 const string = 'console.log("hello world swapnil")'
 const containerId = "b4ee9b032e1e0a930a178c4c107e6bceb2445b5db8fdcec6bcdd2630181b708e"
 
