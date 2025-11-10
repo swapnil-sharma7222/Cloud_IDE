@@ -1,5 +1,3 @@
-// SIDEBAR WITH FILE API CALL AND CACHED TABS
-
 import React, { useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { FiFolder, FiFile, FiArrowRight, FiArrowDown } from "react-icons/fi";
@@ -19,8 +17,11 @@ interface SidebarItemProps {
 
 const SideBarItem: React.FC<SidebarItemProps> = ({ item, parentPath = "" }) => {
   const [isOpenFolder, setIsOpenFolder] = useState(false);
+  const [children, setChildren] = useState<SidebarItemProps["item"][]>(item.children || []);
+  const [isLoading, setIsLoading] = useState(false);
+  
   const dispatch = useDispatch<AppDispatch>();
-  const userId= useParams().userId;
+  const { userId } = useParams<{ userId: string }>();
   
   const fileCache = useSelector((state: RootState) => state.fileTab.fileCache);
   
@@ -31,7 +32,6 @@ const SideBarItem: React.FC<SidebarItemProps> = ({ item, parentPath = "" }) => {
       const cachedContent = fileCache.get(currentPath);
       
       if (cachedContent) {
-        // File content is cached, reopen with cached data
         dispatch(
           addFileTab({
             filename: item.name,
@@ -42,7 +42,6 @@ const SideBarItem: React.FC<SidebarItemProps> = ({ item, parentPath = "" }) => {
           })
         );
       } else {
-        // File not cached, fetch from backend
         try {
           const response = await fetch(
             `http://localhost:4200/v1/api/file-data?userId=${userId}&path=${encodeURIComponent(currentPath)}`
@@ -64,6 +63,22 @@ const SideBarItem: React.FC<SidebarItemProps> = ({ item, parentPath = "" }) => {
       }
     } else {
       setIsOpenFolder((prev) => !prev);
+      if (!isOpenFolder && children.length === 0) {
+        setIsLoading(true);
+        try {
+          const response = await fetch(
+            `http://localhost:4200/v1/api/folder-structure?userId=${userId}&filePath=${encodeURIComponent(currentPath)}`
+          );
+          const data = await response.json();
+          
+          
+          setChildren(data);
+        } catch (err) {
+          console.error("❌ Failed to load folder structure", err);
+        } finally {
+          setIsLoading(false);
+        }
+      }
     }
   };
 
@@ -97,17 +112,30 @@ const SideBarItem: React.FC<SidebarItemProps> = ({ item, parentPath = "" }) => {
         <Typography variant="body2" sx={{ flexGrow: 1 }}>
           {item.name}
         </Typography>
+        {isLoading && (
+          <Typography variant="caption" sx={{ color: 'grey.500', marginLeft: 1 }}>
+            Loading...
+          </Typography>
+        )}
       </Box>
 
-      {isOpenFolder && item.type === "folder" && item.children && (
+      {isOpenFolder && item.type === "folder" && (
         <Box sx={{ marginLeft: 3 }}>
-          {item.children.map((child) => (
-            <SideBarItem
-              key={child.name}
-              item={child}
-              parentPath={currentPath}
-            />
-          ))}
+          {children.length > 0 ? (
+            children.map((child) => (
+              <SideBarItem
+                key={child.name}
+                item={child}
+                parentPath={currentPath}
+              />
+            ))
+          ) : (
+            !isLoading && (
+              <Typography variant="caption" sx={{ color: 'grey.500', paddingLeft: 2 }}>
+                Empty folder
+              </Typography>
+            )
+          )}
         </Box>
       )}
     </Box>

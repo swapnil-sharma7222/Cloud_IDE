@@ -17,7 +17,7 @@ export default function FolderStructure() {
   const userId= useParams().userId;
 
   useEffect(() => {
-    fetch(`http://localhost:4200/v1/api/folder-structure?userId=${userId}`)
+    fetch(`http://localhost:4200/v1/api/folder-structure?userId=${userId}&filePath=/`)
       .then((res) => res.json())
       .then((data) => setStructure(data))
       .catch((err) => console.error(err));
