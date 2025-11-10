@@ -80,11 +80,17 @@ app.get('/v1/api/file-data', (req, res) => {
 
 app.get('/v1/api/folder-structure', (req, res) => {
   const userId = req.query.userId as string;
-  console.log(`User ID for folder structure request: ${userId}`);
+  let filePath = req.query.filePath as string;
+  // console.log(`User ID for folder structure request: ${userId}`);
   const userProject = userProjectMap[userId];
-  console.log("this is folder structure ",containerPath(userProject));
+  if (filePath === '/') {
+    filePath = userProject;
+  } else {
+    filePath = userProject + '/'+ filePath;
+  }
+  console.log(containerPath(filePath));
   try {
-    const structure = getFolderStructure(containerPath(userProject));
+    const structure = getFolderStructure(containerPath(filePath));
     res.json(structure)
   } catch (err) {
     console.error(err)

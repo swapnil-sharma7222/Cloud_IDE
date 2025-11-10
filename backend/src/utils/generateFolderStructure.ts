@@ -46,18 +46,18 @@ export function getFolderStructure(dir: string): FileNode[] {
       }
     }
 
-    if (entry.isDirectory()) {
-      const fullPath = path.join(dir, name)
-      return {
-        name,
-        type: 'folder',
-        children: getFolderStructure(fullPath),
-      }
-    }
+    // if (entry.isDirectory()) {
+    //   const fullPath = path.join(dir, name)
+    //   return {
+    //     name,
+    //     type: 'folder',
+    //     children: getFolderStructure(fullPath),
+    //   }
+    // }
 
     return {
       name,
-      type: 'file',
+      type: entry.isDirectory() ? 'folder' : 'file',
     }
   })
 }
