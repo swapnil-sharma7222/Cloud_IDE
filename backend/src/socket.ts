@@ -48,7 +48,6 @@ export function initSocket(server: HttpServer): void {
         console.error(`❌ Failed to send initial structure to ${userId}:`, error);
       }
 
-      // ✅ Start watching for changes
       chokidarWatcher(io, socket);
     } else {
       console.warn(`⚠️ No project found for user: ${userId}`);
@@ -76,12 +75,12 @@ export function initSocket(server: HttpServer): void {
       }
 
       try {
-        if (command.trim().startsWith('cd ')) {
+        if (command.trim().startsWith('cd')) {
           const newDir = command.trim().substring(3).trim() || '~';
 
           let targetPath: string;
           if (newDir === '~' || newDir === '') {
-            targetPath = '/home/appuser/folder';
+            targetPath = `/home/appuser/folder/${userProject}`;
           } else if (newDir === '..') {
             const parts = session.workingDir.split('/').filter(Boolean);
             parts.pop();
@@ -100,10 +99,10 @@ export function initSocket(server: HttpServer): void {
 
           if (testResult.output.trim() === 'OK') {
             session.workingDir = targetPath;
-            const prompt = getPrompt(userProject);
+            const prompt = getPrompt(targetPath.slice(targetPath.indexOf(userProject)));
             socket.emit('terminal:data', `\r\n${prompt}`);
           } else {
-            const prompt = getPrompt(userProject);
+            const prompt = getPrompt(session.workingDir.slice(session.workingDir.indexOf(userProject)));
             socket.emit('terminal:data', `\r\ncd: ${newDir}: No such file or directory\r\n${prompt}`);
           }
           return;
@@ -116,7 +115,7 @@ export function initSocket(server: HttpServer): void {
         );
 
         const formattedOutput = result.output.replace(/\n/g, '\r\n');
-        const prompt = getPrompt(userProject);
+        const prompt = getPrompt(session.workingDir.slice(session.workingDir.indexOf(userProject)));
 
         if (formattedOutput) {
           socket.emit('terminal:data', `\r\n${formattedOutput}\r\n${prompt}`);
@@ -125,7 +124,7 @@ export function initSocket(server: HttpServer): void {
         }
 
       } catch (err) {
-        const prompt = getPrompt(userProject);
+        const prompt = getPrompt(session.workingDir.slice(session.workingDir.indexOf(userProject)));
         socket.emit('terminal:data', `\r\n\x1b[31mError: ${err}\x1b[0m\r\n${prompt}`);
       }
     });
