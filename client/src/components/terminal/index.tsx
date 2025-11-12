@@ -101,7 +101,6 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
             commandHistoryRef.current.length === 0 ||
             commandHistoryRef.current[commandHistoryRef.current.length - 1] !== command
           ) {
-            console.log('Adding command to history:', command);
             commandHistoryRef.current.push(command);
           }
           
