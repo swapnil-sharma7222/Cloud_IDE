@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
-import { useSocket } from '../../contexts/SocketContext'; // ✅ Use shared socket
+import { useSocket } from '../../contexts/SocketContext';
 
 interface TerminalProps {
   containerId: string;
@@ -13,8 +13,12 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const commandBufferRef = useRef<string>('');
+  
+  // ✅ Store command history
+  const commandHistoryRef = useRef<string[]>([]);
+  const historyIndexRef = useRef<number>(-1);
 
-  const { socket, isConnected } = useSocket(); // ✅ Use shared socket
+  const { socket, isConnected } = useSocket();
 
   useEffect(() => {
     if (!terminalRef.current || !socket || !isConnected) return;
@@ -43,7 +47,6 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
     xtermRef.current = xterm;
     fitAddonRef.current = fitAddon;
 
-    // Initialize terminal when socket is ready
     socket.emit('terminal:init', containerId);
 
     socket.on('terminal:data', (data: string) => {
@@ -53,18 +56,60 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
     xterm.onData((data: string) => {
       const code = data.charCodeAt(0);
 
-      if (code === 13) {
-        const command = commandBufferRef.current;
-        commandBufferRef.current = '';
+      
+      if (data === '\x1b[A') {
+        // Arrow Up 
+        if (commandHistoryRef.current.length === 0) return;
 
-        if (command.trim()) {
-          socket.emit('terminal:exec', command);
+        if (historyIndexRef.current === -1) {
+          historyIndexRef.current = commandHistoryRef.current.length - 1;
+        } else if (historyIndexRef.current > 0) {
+          historyIndexRef.current--;
+        }
+
+        const historicCommand = commandHistoryRef.current[historyIndexRef.current];
+        clearCurrentLine(xterm, commandBufferRef.current.length);
+        commandBufferRef.current = historicCommand;
+        xterm.write(historicCommand);
+        return;
+      }
+
+      if (data === '\x1b[B') {
+        // Arrow Down 
+        if (commandHistoryRef.current.length === 0 || historyIndexRef.current === -1) return;
+
+        if (historyIndexRef.current < commandHistoryRef.current.length - 1) {
+          historyIndexRef.current++;
+          const historicCommand = commandHistoryRef.current[historyIndexRef.current];
+          clearCurrentLine(xterm, commandBufferRef.current.length);
+          commandBufferRef.current = historicCommand;
+          xterm.write(historicCommand);
         } else {
-          xterm.write('\r\n$ ');
+          historyIndexRef.current = -1;
+          clearCurrentLine(xterm, commandBufferRef.current.length);
+          commandBufferRef.current = '';
         }
         return;
       }
 
+      // Enter key - Execute command
+      if (code === 13) {
+        const command = commandBufferRef.current.trim();
+        
+        if (
+          commandHistoryRef.current.length === 0 ||
+          commandHistoryRef.current[commandHistoryRef.current.length - 1] !== command
+        ) {
+          commandHistoryRef.current.push(command);
+        }
+        
+        historyIndexRef.current = -1;
+        socket.emit('terminal:exec', command);
+        commandBufferRef.current = '';
+        return;
+      }
+
+      // Backspace
       if (code === 127 || code === 8) {
         if (commandBufferRef.current.length > 0) {
           commandBufferRef.current = commandBufferRef.current.slice(0, -1);
@@ -73,12 +118,15 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
         return;
       }
 
+      // Ctrl+C
       if (code === 3) {
         commandBufferRef.current = '';
+        historyIndexRef.current = -1;
         xterm.write('^C\r\n$ ');
         return;
       }
 
+      // Regular character input
       if (code >= 32 && code < 127) {
         commandBufferRef.current += data;
         xterm.write(data);
@@ -106,7 +154,6 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
     return () => {
       window.removeEventListener('resize', handleResize);
       resizeObserver.disconnect();
-      // ✅ Remove socket listeners but don't disconnect
       socket.off('terminal:data');
       xterm.dispose();
     };
@@ -122,4 +169,20 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
       }}
     />
   );
+}
+
+// ✅ Helper function to clear current line
+function clearCurrentLine(xterm: Terminal, length: number) {
+  // Move cursor back to start of input
+  for (let i = 0; i < length; i++) {
+    xterm.write('\b');
+  }
+  // Clear characters
+  for (let i = 0; i < length; i++) {
+    xterm.write(' ');
+  }
+  // Move cursor back again
+  for (let i = 0; i < length; i++) {
+    xterm.write('\b');
+  }
 }

@@ -48,7 +48,6 @@ export function initSocket(server: HttpServer): void {
         console.error(`❌ Failed to send initial structure to ${userId}:`, error);
       }
 
-      // ✅ Start watching for changes
       chokidarWatcher(io, socket);
     } else {
       console.warn(`⚠️ No project found for user: ${userId}`);
@@ -67,32 +66,34 @@ export function initSocket(server: HttpServer): void {
     });
 
     // Execute command in Docker container
-    socket.on('terminal:exec', async (command: string) => {
+    socket.on('terminal:exec', async (cmds: string) => {
       const session = sessions.get(socket.id);
 
       if (!session) {
         socket.emit('terminal:data', '\r\n\x1b[31mError: Terminal not initialized\x1b[0m\r\n$ ');
         return;
       }
-
-      try {
-        if (command.trim().startsWith('cd ')) {
-          const newDir = command.trim().substring(3).trim() || '~';
-
-          let targetPath: string;
-          if (newDir === '~' || newDir === '') {
-            targetPath = '/home/appuser/folder';
-          } else if (newDir === '..') {
-            const parts = session.workingDir.split('/').filter(Boolean);
-            parts.pop();
-            targetPath = '/' + parts.join('/');
-          } else if (newDir.startsWith('/')) {
-            targetPath = newDir;
-          } else {
-            targetPath = `${session.workingDir}/${newDir}`;
-          }
-
-          const testResult = await executeInContainer(
+      const commands = cmds.trim().split('&&').map(cmd => cmd.trim()).filter(cmd => cmd.length > 0);
+      for (const command of commands) {
+        try {
+          if (command.trim().startsWith('cd')) {
+            let newDir = command.trim().substring(2).trim() || '~';
+            if(newDir.startsWith('./')) newDir = newDir.slice(2);
+            console.log(`Changing directory to:${newDir}`);
+            
+            let targetPath: string;
+            if (newDir === '~' || newDir === '') {
+              targetPath = `/home/appuser/folder/${userProject}`;
+            } else if (newDir.startsWith('..')) {
+              const numberOfFolders = (newDir.match(/\.\./g) || []).length;
+              const parts = session.workingDir.split('/').filter(Boolean);
+              parts.splice(-numberOfFolders, numberOfFolders);
+              targetPath = '/' + parts.join('/');
+            } else {
+              targetPath = `${session.workingDir}/${newDir}`;
+            }
+            
+            const testResult = await executeInContainer(
             session.containerId,
             `test -d "${targetPath}" && echo "OK" || echo "ERROR"`,
             session.workingDir
@@ -100,34 +101,35 @@ export function initSocket(server: HttpServer): void {
 
           if (testResult.output.trim() === 'OK') {
             session.workingDir = targetPath;
-            const prompt = getPrompt(userProject);
+            const prompt = getPrompt(session.workingDir.slice(session.workingDir.indexOf(userProject)));
             socket.emit('terminal:data', `\r\n${prompt}`);
           } else {
-            const prompt = getPrompt(userProject);
+            const prompt = getPrompt(session.workingDir.slice(session.workingDir.indexOf(userProject)));
             socket.emit('terminal:data', `\r\ncd: ${newDir}: No such file or directory\r\n${prompt}`);
           }
-          return;
+          continue;
         }
-
+        
         const result = await executeInContainer(
           session.containerId,
           command,
           session.workingDir
         );
-
+        
         const formattedOutput = result.output.replace(/\n/g, '\r\n');
-        const prompt = getPrompt(userProject);
-
+        const prompt = getPrompt(session.workingDir.slice(session.workingDir.indexOf(userProject)));
+        
         if (formattedOutput) {
           socket.emit('terminal:data', `\r\n${formattedOutput}\r\n${prompt}`);
         } else {
           socket.emit('terminal:data', `\r\n${prompt}`);
         }
-
+        
       } catch (err) {
-        const prompt = getPrompt(userProject);
+        const prompt = getPrompt(session.workingDir.slice(session.workingDir.indexOf(userProject)));
         socket.emit('terminal:data', `\r\n\x1b[31mError: ${err}\x1b[0m\r\n${prompt}`);
       }
+    }
     });
 
     socket.on("join-playground", (playgroundId: string) => {
