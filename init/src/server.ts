@@ -76,9 +76,9 @@ app.get('/', (req: Request, res: Response) => {
 
 app.get('/start', (req: Request, res: Response) => {
   var container = docker.getContainer(containerId)
-  container.inspect(function (err, data) {
-    console.log(data)
-  })
+  // container.inspect(function (err, data) {
+  //   console.log(data)
+  // })
 
   container.start(function (err, data) {
     console.log(data)
