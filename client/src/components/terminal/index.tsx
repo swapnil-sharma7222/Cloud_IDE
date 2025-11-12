@@ -96,21 +96,15 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
       if (code === 13) {
         const command = commandBufferRef.current.trim();
         
-        if (command) {
-          if (
-            commandHistoryRef.current.length === 0 ||
-            commandHistoryRef.current[commandHistoryRef.current.length - 1] !== command
-          ) {
-            commandHistoryRef.current.push(command);
-          }
-          
-          historyIndexRef.current = -1;
-          
-          socket.emit('terminal:exec', command);
-        } else {
-          xterm.write('\r\n$ ');
+        if (
+          commandHistoryRef.current.length === 0 ||
+          commandHistoryRef.current[commandHistoryRef.current.length - 1] !== command
+        ) {
+          commandHistoryRef.current.push(command);
         }
         
+        historyIndexRef.current = -1;
+        socket.emit('terminal:exec', command);
         commandBufferRef.current = '';
         return;
       }
