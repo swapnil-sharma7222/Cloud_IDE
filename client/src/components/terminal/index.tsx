@@ -3,9 +3,17 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { useSocket } from '../../contexts/SocketContext';
+import { getTabCompletion } from '../../utils/getTabCompletion';
+import { clearCurrentLine } from '../../utils/clearCurrentLine';
 
 interface TerminalProps {
   containerId: string;
+}
+
+interface FileNode {
+  name: string;
+  type: 'file' | 'folder';
+  children?: FileNode[];
 }
 
 export default function TerminalComponent({ containerId }: TerminalProps) {
@@ -13,10 +21,12 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const commandBufferRef = useRef<string>('');
-  
-  // ✅ Store command history
+
   const commandHistoryRef = useRef<string[]>([]);
   const historyIndexRef = useRef<number>(-1);
+  const currentDirContentsRef = useRef<FileNode[]>([]);
+
+  const currentPromptRef = useRef<string>('$ ');
 
   const { socket, isConnected } = useSocket();
 
@@ -49,14 +59,50 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
 
     socket.emit('terminal:init', containerId);
 
-    socket.on('terminal:data', (data: string) => {
-      xterm.write(data);
+    socket.on('terminal:data', (data: { text: string; folderStructure: FileNode[] }) => {
+      const lines = data.text.split('\r\n');
+      const lastLine = lines[lines.length - 1];
+
+      if (lastLine.includes('$')) {
+        currentPromptRef.current = lastLine;
+      }
+
+      xterm.write(data.text);
+
+      if (data.folderStructure) {
+        currentDirContentsRef.current = data.folderStructure;
+      }
     });
 
     xterm.onData((data: string) => {
       const code = data.charCodeAt(0);
 
-      
+      if (code === 9) {
+        const result = getTabCompletion(commandBufferRef.current, currentDirContentsRef.current);
+
+        if (result.type === 'complete') {
+          // Single match - autocomplete
+          const toAdd = result.completion;
+          commandBufferRef.current += toAdd;
+          xterm.write(toAdd);
+        } else if (result.type === 'suggest') {
+          // Multiple matches - show suggestions
+          xterm.write('\r\n');
+
+          const columns = 4;
+          const maxWidth = Math.max(...result.matches.map(m => m.length)) + 2;
+
+          for (let i = 0; i < result.matches.length; i += columns) {
+            const row = result.matches.slice(i, i + columns);
+            const formattedRow = row.map(m => m.padEnd(maxWidth)).join('');
+            xterm.write(formattedRow + '\r\n');
+          }
+
+          xterm.write(currentPromptRef.current + commandBufferRef.current);
+        }
+        return;
+      }
+
       if (data === '\x1b[A') {
         // Arrow Up 
         if (commandHistoryRef.current.length === 0) return;
@@ -95,14 +141,14 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
       // Enter key - Execute command
       if (code === 13) {
         const command = commandBufferRef.current.trim();
-        
+
         if (
           commandHistoryRef.current.length === 0 ||
           commandHistoryRef.current[commandHistoryRef.current.length - 1] !== command
         ) {
           commandHistoryRef.current.push(command);
         }
-        
+
         historyIndexRef.current = -1;
         socket.emit('terminal:exec', command);
         commandBufferRef.current = '';
@@ -122,7 +168,7 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
       if (code === 3) {
         commandBufferRef.current = '';
         historyIndexRef.current = -1;
-        xterm.write('^C\r\n$ ');
+        xterm.write('^C\r\n' + currentPromptRef.current);
         return;
       }
 
@@ -169,20 +215,4 @@ export default function TerminalComponent({ containerId }: TerminalProps) {
       }}
     />
   );
-}
-
-// ✅ Helper function to clear current line
-function clearCurrentLine(xterm: Terminal, length: number) {
-  // Move cursor back to start of input
-  for (let i = 0; i < length; i++) {
-    xterm.write('\b');
-  }
-  // Clear characters
-  for (let i = 0; i < length; i++) {
-    xterm.write(' ');
-  }
-  // Move cursor back again
-  for (let i = 0; i < length; i++) {
-    xterm.write('\b');
-  }
 }
