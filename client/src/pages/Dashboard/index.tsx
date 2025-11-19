@@ -5,6 +5,7 @@ import TerminalComponent from '../../components/terminal'
 import FolderStructure from '../../components/side-bar/FolderStructure'
 import axios from 'axios'
 import WebView from "../../components/web-view";
+import VideoChat from '../../components/video-chat'
 
 interface ColumnWidths {
   column1: number
@@ -117,6 +118,7 @@ const Dashboard: React.FC = () => {
         {/* Navbar */}
         <div className="navbar-wrapper" style={{ border: '1px solid black' }}>
           <div className="nav">this is navbar</div>
+          <VideoChat />
         </div>
         <div className="hero-wrapper">
           {/* Column 1 */}

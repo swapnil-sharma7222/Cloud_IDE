@@ -14,7 +14,17 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/:userId/dashboard"
+          <Route
+            path="/:userId/dashboard"
+            element={
+              <SocketProvider>
+                <Dashboard />
+              </SocketProvider>
+            }
+          />
+
+          <Route
+            path="/:userId/dashboard/:roomId"
             element={
               <SocketProvider>
                 <Dashboard />

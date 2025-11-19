@@ -139,6 +139,24 @@ export function initSocket(server: HttpServer): void {
     }
     });
 
+    socket.on("join-room", (data) => {
+      const { roomId, userId, link } = data;
+      console.log(`User ${userId} joining room: ${roomId}`);
+      socket.join(roomId);
+      socket.to(roomId).emit("user-joined", { userId, link });
+    });
+    
+    socket.on('outgoing:call', data => {
+      const { fromOffer, to } = data;
+
+      socket.to(to).emit('incomming:call', { from: socket.id, offer: fromOffer });
+    });
+
+    socket.on('call:accepted', data => {
+      const { answere, to } = data;
+      socket.to(to).emit('incomming:call', { from: socket.id, offer: answere })
+    });
+
     socket.on("join-playground", (playgroundId: string) => {
       console.log(`User ${socket.id} joined ${playgroundId}`);
       socket.join(playgroundId);
