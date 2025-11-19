@@ -1,6 +1,11 @@
-import VideoChat from "../video-chat";
+import { useParams } from "react-router-dom";
+import VideoChat from "./video-chat";
+interface VideoViewProps {
+  isInRoom: boolean
+}
 
-const VideoView: React.FC = () => {
+const VideoView: React.FC<VideoViewProps> = ({ isInRoom }) => {
+  const { roomId } = useParams<{ roomId?: string }>()
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       {/* ✅ Conditionally render video chat only when in room */}
