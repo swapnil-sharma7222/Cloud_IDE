@@ -14,6 +14,12 @@ interface TerminalSession {
   userId: string;
 }
 
+interface FileNode {
+  name: string;
+  type: 'file' | 'folder';
+  children?: FileNode[];
+}
+
 const sessions = new Map<string, TerminalSession>();
 
 export function initSocket(server: HttpServer): void {
@@ -38,10 +44,11 @@ export function initSocket(server: HttpServer): void {
     console.log(`✅ User connected: ${socket.id}, userId: ${userId}`);
 
     const userProject = userProjectMap[userId];
+    let structure: FileNode[];
 
     if (userProject) {
       try {
-        const structure = getFolderStructure(containerPath(userProject));
+        structure = getFolderStructure(containerPath(userProject));
         socket.emit("folderStructureUpdate", structure);
         console.log(`📁 Sent initial folder structure to user: ${userId}`);
       } catch (error) {
@@ -62,7 +69,7 @@ export function initSocket(server: HttpServer): void {
       });
 
       const prompt = getPrompt(`${userProject}`);
-      socket.emit('terminal:data', `\x1b[32m●\x1b[0m Terminal ready\r\n${prompt}`);
+      socket.emit('terminal:data', { text: `\x1b[32m●\x1b[0m Terminal ready\r\n${prompt}`, folderStructure: structure });
     });
 
     // Execute command in Docker container
@@ -70,7 +77,7 @@ export function initSocket(server: HttpServer): void {
       const session = sessions.get(socket.id);
 
       if (!session) {
-        socket.emit('terminal:data', '\r\n\x1b[31mError: Terminal not initialized\x1b[0m\r\n$ ');
+        socket.emit('terminal:data', { text: `\r\n\x1b[31mError: Terminal not initialized\x1b[0m\r\n$ ` });
         return;
       }
       const commands = cmds.trim().split('&&').map(cmd => cmd.trim()).filter(cmd => cmd.length > 0);
@@ -79,7 +86,6 @@ export function initSocket(server: HttpServer): void {
           if (command.trim().startsWith('cd')) {
             let newDir = command.trim().substring(2).trim() || '~';
             if(newDir.startsWith('./')) newDir = newDir.slice(2);
-            console.log(`Changing directory to:${newDir}`);
             
             let targetPath: string;
             if (newDir === '~' || newDir === '') {
@@ -101,8 +107,9 @@ export function initSocket(server: HttpServer): void {
 
           if (testResult.output.trim() === 'OK') {
             session.workingDir = targetPath;
+            const folderStructure = getFolderStructure(containerPath(session.workingDir.slice(session.workingDir.lastIndexOf(userProject))));
             const prompt = getPrompt(session.workingDir.slice(session.workingDir.indexOf(userProject)));
-            socket.emit('terminal:data', `\r\n${prompt}`);
+            socket.emit('terminal:data', {text: `\r\n${prompt}`, folderStructure});
           } else {
             const prompt = getPrompt(session.workingDir.slice(session.workingDir.indexOf(userProject)));
             socket.emit('terminal:data', `\r\ncd: ${newDir}: No such file or directory\r\n${prompt}`);
@@ -120,16 +127,34 @@ export function initSocket(server: HttpServer): void {
         const prompt = getPrompt(session.workingDir.slice(session.workingDir.indexOf(userProject)));
         
         if (formattedOutput) {
-          socket.emit('terminal:data', `\r\n${formattedOutput}\r\n${prompt}`);
+          socket.emit('terminal:data', { text: `\r\n${formattedOutput}\r\n${prompt}` });
         } else {
-          socket.emit('terminal:data', `\r\n${prompt}`);
+          socket.emit('terminal:data', { text: `\r\n${prompt}` });
         }
         
       } catch (err) {
         const prompt = getPrompt(session.workingDir.slice(session.workingDir.indexOf(userProject)));
-        socket.emit('terminal:data', `\r\n\x1b[31mError: ${err}\x1b[0m\r\n${prompt}`);
+        socket.emit('terminal:data', { text: `\r\n\x1b[31mError: ${err}\x1b[0m\r\n${prompt}` });
       }
     }
+    });
+
+    socket.on("join-room", (data) => {
+      const { roomId, userId, link } = data;
+      console.log(`User ${userId} joining room: ${roomId}`);
+      socket.join(roomId);
+      socket.to(roomId).emit("user-joined", { userId, link });
+    });
+    
+    socket.on('outgoing:call', data => {
+      const { fromOffer, to } = data;
+
+      socket.to(to).emit('incomming:call', { from: socket.id, offer: fromOffer });
+    });
+
+    socket.on('call:accepted', data => {
+      const { answere, to } = data;
+      socket.to(to).emit('incomming:call', { from: socket.id, offer: answere })
     });
 
     socket.on("join-playground", (playgroundId: string) => {

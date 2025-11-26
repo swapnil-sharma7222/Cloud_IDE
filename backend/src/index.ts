@@ -34,11 +34,25 @@ export const roomContainerMap: Record<string, RoomInfo> = {}
 export const userProjectMap: Record<string, string> = {}
 export const userContainerMap: Record<string, string> = {}
 userProjectMap["69676096-bb01-46a1-811d-f277373682e0"] = "pro1"
+userProjectMap["swapnil"] = "swapnil_node"
 // http://localhost:5173/69676096-bb01-46a1-811d-f277373682e0/dashboard
+
+export const userIdMap: Map<string, string> = new Map();
+userIdMap.set("swapnil", "swapnil");
+userIdMap.set("sharma", "sharma");
+
+app.post('/v1/api/login', async (req, res) => {
+  const { name, password } = req.body;
+  if (userIdMap.has(name) && userIdMap.get(name) === password) {
+    res.json({ success: true, name: name });
+  } else {
+    res.status(401).json({ success: false, message: 'Invalid credentials' });
+  }
+});
 
 app.post('/v1/api/init-project', async(req, res) => {
 try {
-  const userId = randomUUID();
+  const userId = req.body.userId;
   const projectName = req.body.name;
   console.log('Received init-project request for userId:', userId, 'projectName:', projectName)
 
@@ -52,9 +66,13 @@ try {
     };
   }
   res.json({ userId, containerId: response.data.containerId, freePort: response.data.freePort })
-} catch (err) {
+} catch (err :any) {
   console.error('Failed to initialize project:', err)
-  res.json({ error: 'Failed to initialize project', message: err })
+  res.status(500).json({
+    error: 'Failed to initialize project',
+    message: err.response?.data?.error || err.message || 'Unknown error',
+    details: err.response?.data
+  });
 }
 })
 

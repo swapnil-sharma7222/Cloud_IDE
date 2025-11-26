@@ -2,9 +2,14 @@ import React, { useState, MouseEvent, useEffect } from 'react'
 import './dashboard.css'
 import { CodeEditor } from '../../components/code-editor'
 import TerminalComponent from '../../components/terminal'
-import FolderStructure from '../../components/side-bar/FolderStructure'
 import axios from 'axios'
 import WebView from "../../components/web-view";
+import { useNavigate, useParams } from 'react-router-dom'
+import { useSocket } from '../../contexts/SocketContext'
+import Sidebar from '../../components/side-bar'
+import { clearUser } from '../../features/user/userSlice'
+import { AppDispatch, RootState } from '../../app/store'
+import { useDispatch, useSelector } from 'react-redux'
 
 interface ColumnWidths {
   column1: number
@@ -12,7 +17,23 @@ interface ColumnWidths {
   column3: number
 }
 
+function generateRoomId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
 const Dashboard: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
+  const [shareableLink, setShareableLink] = useState<string>('');
+  const { socket, isConnected, userId } = useSocket();
+  const { roomId } = useParams<{ roomId: string }>();
+  const isInRoom = Boolean(roomId);
+  const userName = useSelector((state: RootState) => state.user.name);
+
+  const handleLogout = () => {
+    dispatch(clearUser());
+    navigate('/auth', { replace: true });
+  };
   useEffect(() => {
     const fetchData = async () => {
       const response = await axios.get('http://localhost:3000/start')
@@ -111,17 +132,85 @@ const Dashboard: React.FC = () => {
     document.addEventListener('mouseup', handleMouseUp)
   }
 
+  const handleShareProject = () => {
+    const newRoomId = generateRoomId();
+    const link = `${window.location.origin}/${userId}/dashboard/${newRoomId}`;
+    setShareableLink(link);
+    socket?.emit("join-room", { roomId: newRoomId, userId, link });
+
+    navigate(`/${userId}/dashboard/${newRoomId}`);
+
+
+    navigator.clipboard.writeText(link);
+    alert(`Room created! Link copied to clipboard:\n${link}`);
+  };
+
+  const handleExitRoom = () => {
+    navigate(`/${userId}/dashboard`);
+  };
+
   return (
     <div className="dashboard-container-wrapper">
       <div className="dashboard-container">
         {/* Navbar */}
-        <div className="navbar-wrapper" style={{ border: '1px solid black' }}>
-          <div className="nav">this is navbar</div>
+        <div className="navbar-wrapper" style={{ border: '1px solid black', display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+          <h2>Welcome, {userName}!</h2>
+          <div>
+            {!isInRoom ? (
+              // ✅ Show "Share" button when NOT in room
+              <button
+                onClick={handleShareProject}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                📤 Share Project
+              </button>
+            ) : (
+              // ✅ Show room info and "Exit" button when IN room
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.9rem', color: '#aaa' }}>
+                  🔴 Room: {roomId}
+                </span>
+                <button
+                  onClick={handleExitRoom}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🚪 Exit Room
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            🚪 Logout
+          </button>
         </div>
         <div className="hero-wrapper">
           {/* Column 1 */}
           <div className="column" style={{ width: `${columnWidths.column1}%` }}>
-            <FolderStructure />
+            <Sidebar isInRoom={isInRoom} />
           </div>
 
           {/* Resizer between Column 1 and Column 2 */}
@@ -132,7 +221,7 @@ const Dashboard: React.FC = () => {
             className="column"
             style={{ width: `${columnWidths.column2}%`, overflow: 'hidden' }}
           >
-            <CodeEditor/>
+            <CodeEditor />
           </div>
 
           {/* Resizer between Column 2 and Column 3 */}
@@ -143,7 +232,7 @@ const Dashboard: React.FC = () => {
             className="column"
             style={{ width: `${columnWidths.column3}%` }}
           >
-            <WebView/>
+            <WebView />
           </div>
 
           <div className="terminal-wrapper">
