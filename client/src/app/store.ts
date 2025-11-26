@@ -2,13 +2,15 @@
 import { configureStore } from "@reduxjs/toolkit";
 import fileTabReducer from "../features/FileTabs/fileTabSlice"; // Ensure the correct path
 import { enableMapSet } from "immer";
+import userReducer from '../features/user/userSlice';
 
 // Enable Map and Set support in Immer
 enableMapSet();
 
 export const store = configureStore({
   reducer: {
-    fileTab: fileTabReducer, // Add the fileTab slice
+    fileTab: fileTabReducer,
+    user: userReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
