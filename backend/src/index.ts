@@ -1,6 +1,7 @@
 import express from 'express'
 import bodyParser from 'body-parser'
 import cors from 'cors'
+import jwt from 'jsonwebtoken'
 // import { Server, Socket } from "socket.io";
 import { createServer } from 'http'
 import dotenv from 'dotenv'
@@ -35,8 +36,11 @@ export const userProjectMap: Record<string, string> = {}
 export const userContainerMap: Record<string, string> = {}
 userProjectMap["69676096-bb01-46a1-811d-f277373682e0"] = "pro1"
 userProjectMap["swapnil"] = "swapnil_node"
-// http://localhost:5173/69676096-bb01-46a1-811d-f277373682e0/dashboard
 
+// http://localhost:5173/69676096-bb01-46a1-811d-f277373682e0/dashboard
+// http://localhost:5173/swapnil/dashboard
+export const userUserIdMap: Record<string, string> = {}
+userUserIdMap["69676096-bb01-46a1-811d-f277373682e0"] = "swapnil"
 export const userIdMap: Map<string, string> = new Map();
 userIdMap.set("swapnil", "swapnil");
 userIdMap.set("sharma", "sharma");
@@ -44,6 +48,16 @@ userIdMap.set("sharma", "sharma");
 app.post('/v1/api/login', async (req, res) => {
   const { name, password } = req.body;
   if (userIdMap.has(name) && userIdMap.get(name) === password) {
+    const jwtPayload = { name, isAuth: true };
+    const secret = process.env.JWT_SECRET;
+    if (!secret) return res.sendStatus(500);
+    const token = jwt.sign(jwtPayload, secret, { expiresIn: '1h' });
+    res.cookie('jwt_token', token, {
+      httpOnly: false, // Prevents JS access (XSS defense)
+      secure: false,   // Only send over HTTPS
+      sameSite: 'strict', // Mitigates CSRF
+      maxAge: 3600000 // Token expiry in milliseconds (e.g., 1 hour)
+    })
     res.json({ success: true, name: name });
   } else {
     res.status(401).json({ success: false, message: 'Invalid credentials' });

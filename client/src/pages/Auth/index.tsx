@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { setUser } from "../../features/user/userSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../app/store";
+import Cookies from 'js-cookie'
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -17,11 +18,11 @@ const Auth = () => {
   const isAuthenticated = useSelector((state: RootState) => state.user.isAuthenticated);
   const userName = useSelector((state: RootState) => state.user.name);
 
-  useEffect(() => {
-    if (isAuthenticated && userName) {
-      navigate(`/${userName}/dashboard`, { replace: true });
-    }
-  }, [isAuthenticated, userName, navigate]);
+  // useEffect(() => {
+  //   if (isAuthenticated && userName) {
+  //     navigate(`/${userName}/dashboard`, { replace: true });
+  //   }
+  // }, [isAuthenticated, userName, navigate]);
 
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -44,6 +45,7 @@ const Auth = () => {
         dispatch(setUser({
           name: response.data.name
         }));
+        Cookies.set('jwt_token', response.data.token);
 
         setName("");
         setPassword("");
