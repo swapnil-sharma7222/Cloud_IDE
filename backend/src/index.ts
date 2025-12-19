@@ -15,6 +15,7 @@ import { containerPath } from './utils/containerPath.ts'
 import { getFolderStructure } from './utils/generateFolderStructure.ts'
 import { randomUUID } from 'crypto'
 import axios from 'axios'
+import { generateRoomId } from './utils/generateRoomId.ts'
 // import io from './socket'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -45,6 +46,8 @@ export const userIdMap: Map<string, string> = new Map();
 userIdMap.set("swapnil", "swapnil");
 userIdMap.set("sharma", "sharma");
 
+export const userRoomIdMap: Set<string> = new Set();
+
 app.post('/v1/api/login', async (req, res) => {
   const { name, password } = req.body;
   if (userIdMap.has(name) && userIdMap.get(name) === password) {
@@ -58,10 +61,25 @@ app.post('/v1/api/login', async (req, res) => {
       sameSite: 'strict', // Mitigates CSRF
       maxAge: 3600000 // Token expiry in milliseconds (e.g., 1 hour)
     })
-    res.json({ success: true, name: name });
+    res.json({ success: true, name: name, token });
   } else {
     res.status(401).json({ success: false, message: 'Invalid credentials' });
   }
+});
+
+app.get('/v1/api/rooms', async (req, res) => {
+  const roomId = req.query.roomId as string;
+  if (!roomId) {
+    return res.status(400).json({ error: 'Missing roomId' });
+  }
+  const isValid = userRoomIdMap.has(roomId);
+  res.json({ valid: isValid });
+});
+
+app.get('/v1/api/create-room', async (req, res) => {
+  const roomId = generateRoomId();
+  userRoomIdMap.add(roomId);
+  res.json({ roomId });
 });
 
 app.post('/v1/api/init-project', async(req, res) => {

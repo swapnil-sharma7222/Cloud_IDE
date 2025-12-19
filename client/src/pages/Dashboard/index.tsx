@@ -10,15 +10,19 @@ import Sidebar from '../../components/side-bar'
 import { clearUser } from '../../features/user/userSlice'
 import { AppDispatch, RootState } from '../../app/store'
 import { useDispatch, useSelector } from 'react-redux'
+import { jwtDecode } from 'jwt-decode'
+
+interface JWTPayload {
+  userId: string;
+  name: string;
+  iat?: number;
+  exp?: number;
+}
 
 interface ColumnWidths {
   column1: number
   column2: number
   column3: number
-}
-
-function generateRoomId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 const Dashboard: React.FC = () => {
@@ -31,6 +35,7 @@ const Dashboard: React.FC = () => {
   const userName = useSelector((state: RootState) => state.user.name);
 
   const handleLogout = () => {
+    localStorage.removeItem('jwt_token');
     dispatch(clearUser());
     navigate('/auth', { replace: true });
   };
@@ -132,8 +137,9 @@ const Dashboard: React.FC = () => {
     document.addEventListener('mouseup', handleMouseUp)
   }
 
-  const handleShareProject = () => {
-    const newRoomId = generateRoomId();
+  const handleShareProject = async () => {
+    const response = await axios.get(`http://localhost:4200/v1/api/create-room`);
+    const newRoomId = response.data.roomId;
     const link = `${window.location.origin}/${userId}/dashboard/${newRoomId}`;
     setShareableLink(link);
     socket?.emit("join-room", { roomId: newRoomId, userId, link });
@@ -146,7 +152,15 @@ const Dashboard: React.FC = () => {
   };
 
   const handleExitRoom = () => {
-    navigate(`/${userId}/dashboard`);
+    socket?.emit("leave-room", { roomId });
+
+    const { name } = jwtDecode<JWTPayload>(localStorage.getItem('jwt_token')!);
+
+    if (userId === name) {
+      navigate(`/${name}/dashboard`);
+    } else {
+      navigate(`/`);
+    }
   };
 
   return (
