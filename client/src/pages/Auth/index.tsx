@@ -2,15 +2,14 @@ import { Button, TextField } from "@mui/material";
 import Box from "@mui/material/Box";
 import axios from "axios";
 import React, { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { setUser } from "../../features/user/userSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../app/store";
-import Cookies from 'js-cookie'
 import { jwtDecode } from "jwt-decode";
 
 interface JWTPayload {
-  userId: string;
+  isAuth: boolean;
   name: string;
   iat?: number;
   exp?: number;
@@ -26,38 +25,23 @@ const Auth = () => {
   const [loading, setLoading] = React.useState(false);
 
   const isAuthenticated = useSelector((state: RootState) => state.user.isAuthenticated);
-  const userName = useSelector((state: RootState) => state.user.name);
   const redirectUrl = searchParams.get('redirect');
 
-  useEffect(() => {
-    const token = Cookies.get('jwt_token');
-
-    if (token) {
-      try {
-        const decoded = jwtDecode<JWTPayload>(token);
-
-        // Check if token is valid
-        if (!decoded.exp || decoded.exp * 1000 > Date.now()) {
-          // Store in Redux
-          dispatch(setUser({
-            name: decoded.name
-          }));
-
-          if (redirectUrl) {
-            navigate(decodeURIComponent(redirectUrl), { replace: true });
-          } else {
-            navigate(`/${decoded.userId}/dashboard`, { replace: true });
-          }
-        } else {
-          localStorage.removeItem('jwt_token');
-        }
-      } catch (error) {
-        console.error('Invalid token:', error);
-        localStorage.removeItem('jwt_token');
-      }
-    }
-  }, [dispatch, navigate, redirectUrl]);
-
+  // useEffect(() => {
+  //   const token = sessionStorage.getItem('jwt_token');
+  //   console.log("token", token)
+  //   console.log("isAuth", isAuthenticated)
+    
+  //   if (token && isAuthenticated) {
+  //     console.log('Already authenticated, redirecting...');
+  //     if (redirectUrl) {
+  //       console.log("Redirecting")
+  //       navigate(decodeURIComponent(redirectUrl), { replace: true });
+  //     } else {
+  //       navigate('/swapnil', { replace: true });
+  //     }
+  //   }
+  // }, []);
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -66,7 +50,6 @@ const Auth = () => {
       return;
     }
 
-    console.log("Form submitted! ", name, password);
     setLoading(true);
     try {
       const response = await axios.post("http://localhost:4200/v1/api/login", {
@@ -74,49 +57,100 @@ const Auth = () => {
         password
       });
 
-      if (response.data.success) {
-        console.log("Login Successful");
+      if (response.data.success && response.data.token) {
+        console.log('✅ Login successful');
+        sessionStorage.setItem('jwt_token', response.data.token);
+        const decoded = jwtDecode<JWTPayload>(response.data.token);
         dispatch(setUser({
-          name: response.data.name
+          name: decoded.name,
+          isAuthenticated: true
         }));
-        localStorage.setItem('jwt_token', response.data.token);
 
         setName("");
         setPassword("");
 
-        if (redirectUrl) {
-          navigate(decodeURIComponent(redirectUrl), { replace: true });
-        } else {
-          navigate(`/${response.data.name}/dashboard`, { replace: true });
-        }
+        setTimeout(() => {
+          if (redirectUrl) {
+            console.log("redirecting");
+            
+            navigate(decodeURIComponent(redirectUrl), { replace: true });
+          } else {
+            console.log("to ss");
+            
+            navigate('/', {replace: true})
+          }
+        }, 100);
+
       } else {
         alert("Login failed. Please check your credentials.");
       }
     } catch (error: any) {
+      console.error("Login error:", error);
+      
+      let errorMessage = "Login failed";
       if (error.response) {
-        console.error(error.response.data.message);
-        alert(error.response.data.message);
-      } else if (error.message) {
-        console.error(error.message);
-        alert("Failed to connect to server. Please try again.");
+        errorMessage = error.response.data?.error || 
+                      error.response.data?.message || 
+                      "Server error occurred";
       }
+      
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+    <div style={{ 
+      display: "flex", 
+      flexDirection: "column", 
+      alignItems: "center", 
+      justifyContent: "center", 
+      height: "100vh",
+      backgroundColor: "#f5f5f5"
+    }}>
       <h1>Welcome to Cloud IDE</h1>
-      <h1 style={{ height: "10%" }}></h1>
+      <p style={{ color: "#666", marginBottom: "2rem" }}>
+        Sign in to continue
+      </p>
+      
       <Box
         component="form"
         onSubmit={handleFormSubmit}
-        sx={{ display: "flex", flexDirection: "column", gap: 2, width: 300 }}
+        sx={{ 
+          display: "flex", 
+          flexDirection: "column", 
+          gap: 2, 
+          width: 400,
+          padding: 4,
+          backgroundColor: "white",
+          borderRadius: 2,
+          boxShadow: 3
+        }}
       >
-        <TextField label="Name" variant="outlined" disabled={loading} value={name} onChange={(e) => setName(e.target.value)} required />
-        <TextField label="Password" variant="outlined" type="password" disabled={loading} value={password} onChange={(e) => setPassword(e.target.value)} required />
-        <Button type="submit" variant="contained">
+        <TextField 
+          label="Name" 
+          variant="outlined" 
+          disabled={loading} 
+          value={name} 
+          onChange={(e) => setName(e.target.value)} 
+          required 
+        />
+        <TextField 
+          label="Password" 
+          variant="outlined" 
+          type="password" 
+          disabled={loading} 
+          value={password} 
+          onChange={(e) => setPassword(e.target.value)} 
+          required 
+        />
+        <Button 
+          type="submit" 
+          variant="contained"
+          disabled={loading}
+          sx={{ height: 45 }}
+        >
           {loading ? "Signing In..." : "Sign In"}
         </Button>
       </Box>

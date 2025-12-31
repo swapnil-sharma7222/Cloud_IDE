@@ -9,7 +9,6 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isInRoom }) => {
-
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       {isInRoom && (
@@ -17,11 +16,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isInRoom }) => {
           style={{
             height: "200px",
             borderBottom: "1px solid #ccc",
-            backgroundColor: "#000",
+            backgroundColor: "#fb0f0fff",
             flexShrink: 0,
           }}
         >
-          <VideoView isInRoom={isInRoom} />
+          <VideoChat  isInRoom={isInRoom} />
         </div>
       )}
 

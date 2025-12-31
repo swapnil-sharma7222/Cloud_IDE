@@ -5,7 +5,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    localStorage.setItem('username', username);
+    sessionStorage.setItem('username', username);
     console.log("Logged in as:", username);
   };
   return (

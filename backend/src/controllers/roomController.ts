@@ -22,7 +22,6 @@ export const validateRoom = async (req: Request, res: Response): Promise<void> =
 export const createRoom = async (req: Request, res: Response): Promise<void> => {
   try {
     const roomId = generateRoomId();
-    userRoomIdMap.add(roomId);
     res.json({ roomId });
   } catch (error) {
     console.error('Create room error:', error);

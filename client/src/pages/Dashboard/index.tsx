@@ -1,4 +1,4 @@
-import React, { useState, MouseEvent, useEffect } from 'react'
+import React, { useState, MouseEvent, useEffect, useCallback, useRef } from 'react'
 import './dashboard.css'
 import { CodeEditor } from '../../components/code-editor'
 import TerminalComponent from '../../components/terminal'
@@ -28,24 +28,24 @@ interface ColumnWidths {
 const Dashboard: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const [shareableLink, setShareableLink] = useState<string>('');
+  const joinedRoomRef = useRef<string | null>(null);
   const { socket, isConnected, userId } = useSocket();
   const { roomId } = useParams<{ roomId: string }>();
   const isInRoom = Boolean(roomId);
   const userName = useSelector((state: RootState) => state.user.name);
 
   const handleLogout = () => {
-    localStorage.removeItem('jwt_token');
+    sessionStorage.removeItem('jwt_token');
     dispatch(clearUser());
     navigate('/auth', { replace: true });
   };
-  useEffect(() => {
-    const fetchData = async () => {
-      const response = await axios.get('http://localhost:3000/start')
-      console.log(response.data)
-    }
-    fetchData();
-  }, [])
+  // useEffect(() => {
+  //   const fetchData = async () => {
+  //     const response = await axios.get('http://localhost:3000/start')
+  //     console.log(response.data)
+  //   }
+  //   fetchData();
+  // }, [])
 
   // Initialize state for each column's width (in percentage) and the terminal's height.
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>({
@@ -137,31 +137,78 @@ const Dashboard: React.FC = () => {
     document.addEventListener('mouseup', handleMouseUp)
   }
 
-  const handleShareProject = async () => {
-    const response = await axios.get(`http://localhost:4200/v1/api/create-room`);
-    const newRoomId = response.data.roomId;
-    const link = `${window.location.origin}/${userId}/dashboard/${newRoomId}`;
-    setShareableLink(link);
-    socket?.emit("join-room", { roomId: newRoomId, userId, link });
+  useEffect(() => {
+    if (!socket || !isConnected || !roomId ) return;
+    if (joinedRoomRef.current === roomId) return;
 
-    navigate(`/${userId}/dashboard/${newRoomId}`);
+    const token = sessionStorage.getItem('jwt_token');
+    if (!token) return;
 
-
-    navigator.clipboard.writeText(link);
-    alert(`Room created! Link copied to clipboard:\n${link}`);
-  };
-
-  const handleExitRoom = () => {
-    socket?.emit("leave-room", { roomId });
-
-    const { name } = jwtDecode<JWTPayload>(localStorage.getItem('jwt_token')!);
-
-    if (userId === name) {
-      navigate(`/${name}/dashboard`);
-    } else {
-      navigate(`/`);
+    try {
+      const decoded = jwtDecode<{ name: string }>(token);
+      console.log(`Emitting join-room for roomId: ${roomId} and userId: ${decoded.name}`);
+      socket.emit('join-room', { roomId, userId: decoded.name });
+      joinedRoomRef.current = roomId;
+    } catch (e) {
+      console.error('Failed to decode token:', e);
     }
-  };
+
+    return () => {
+      if (socket && roomId) {
+        socket.emit('leave-room', { roomId });
+        joinedRoomRef.current = null;
+      }
+    };
+  }, [socket, isConnected, roomId, socket?.id]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handler = (data: any) => {
+      const { userId: joinedUserId } = data;
+      alert(`User ${joinedUserId} has joined the room`);
+    };
+    socket.on("user-joined", handler);
+    return () => socket.off("user-joined", handler);
+  }, [socket]);
+
+  const handleShareProject = useCallback(() => {
+    if (!socket || !userId) {
+      alert('Socket not connected');
+      return;
+    }
+
+    socket.emit('create-room', { userId }, (response: any) => {
+      if (response.success) {
+        const shareableLink = `${window.location.origin}/${userId}/dashboard/${response.roomId}`;
+        console.log('Shareable link:', shareableLink);
+        navigator.clipboard.writeText(shareableLink);
+        alert(`Link copied to clipboard!\n${shareableLink}`);
+        navigate(`/${userId}/dashboard/${response.roomId}`);
+      }
+    });
+  }, [socket, userId, navigate]);
+
+  useEffect(() => {
+    socket?.on("user-joined", (data) => {
+      const { userId: joinedUserId } = data;
+      alert(`User ${joinedUserId} has joined the room`);
+    });
+  }, [roomId, socket]);
+
+  const handleExitRoom = useCallback(() => {
+    if (socket && roomId) {
+      socket.emit('leave-room', { roomId });
+      const { name } = jwtDecode<JWTPayload>(sessionStorage.getItem('jwt_token')!);
+
+      if (userId === name) {
+        navigate(`/${name}/dashboard`);
+      } else {
+        navigate(`/`);
+      }
+      setHasJoinedRoom(false);
+    }
+    
+  }, [socket, roomId, userId, navigate]);
 
   return (
     <div className="dashboard-container-wrapper">

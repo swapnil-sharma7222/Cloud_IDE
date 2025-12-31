@@ -46,8 +46,7 @@ export const userIdMap: Map<string, string> = new Map();
 userIdMap.set("swapnil", "swapnil");
 userIdMap.set("sharma", "sharma");
 
-export const userRoomIdMap: Set<string> = new Set();
-
+export const userRoomIdMap: Map<string, string[]> = new Map();
 // Base route
 const BASE_ROUTE = '/v1/api';
 
