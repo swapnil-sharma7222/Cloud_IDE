@@ -35,7 +35,6 @@ const VideoChat: React.FC<{ isInRoom?: boolean }> = ({ isInRoom }) => {
       }
     };
 
-    // ✅ CRITICAL: Only create offer when stable
     pc.onnegotiationneeded = async () => {
       if (isNegotiatingRef.current || pc.signalingState !== 'stable') {
         console.log('[NEGOTIATION] skipping - busy or unstable');
@@ -68,7 +67,6 @@ const VideoChat: React.FC<{ isInRoom?: boolean }> = ({ isInRoom }) => {
 
   const handleVideo = useCallback(async () => {
     try {
-      // ✅ Stop existing stream using ref
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(track => track.stop());
         mediaStreamRef.current = null;
@@ -83,7 +81,7 @@ const VideoChat: React.FC<{ isInRoom?: boolean }> = ({ isInRoom }) => {
         audio: true
       });
 
-      mediaStreamRef.current = stream; // ✅ Store in ref
+      mediaStreamRef.current = stream; 
       setMediaStream(stream);
       setIsStreaming(true);
 
@@ -99,7 +97,7 @@ const VideoChat: React.FC<{ isInRoom?: boolean }> = ({ isInRoom }) => {
       setMediaStream(null);
       mediaStreamRef.current = null;
     }
-  }, [setupPeerHandlers]); // ✅ No mediaStream dependency
+  }, [setupPeerHandlers]); 
 
   const handleIncomingOffer = useCallback(async (data: { from: string; offer: RTCSessionDescriptionInit }) => {
     const { from, offer } = data;
@@ -151,7 +149,7 @@ const VideoChat: React.FC<{ isInRoom?: boolean }> = ({ isInRoom }) => {
     } catch (error) {
       console.error('[ERROR] Failed to handle incoming offer:', error);
     }
-  }, [socket, roomId, isInRoom, setupPeerHandlers]); // ✅ Removed mediaStream
+  }, [socket, roomId, isInRoom, setupPeerHandlers]); 
 
   const handleIncomingAnswer = useCallback(async ({ answer, from }: { answer: RTCSessionDescriptionInit; from?: string }) => {
     console.log('[ANSWER] received from', from);
